@@ -1,12 +1,18 @@
+export type NoteSource = 'api' | 'telegram' | 'manual' | 'notion' | 'gdrive' | 'web' | 'agent';
+export type NoteStatus = 'inbox' | 'processed' | 'evergreen';
+
 export interface NoteFrontmatter {
   id: string;
   title: string;
   tags: string[];
   created_at: string;
   updated_at: string;
-  source?: 'api' | 'telegram' | 'manual';
-  status?: 'inbox' | 'processed' | 'evergreen';
+  source?: NoteSource;
+  status?: NoteStatus;
   links?: string[];
+  notion_id?: string;
+  gdrive_id?: string;
+  source_url?: string;
 }
 
 export interface Note {
@@ -19,14 +25,15 @@ export interface CreateNoteDto {
   title: string;
   content: string;
   tags?: string[];
-  source?: 'api' | 'telegram' | 'manual';
+  source?: NoteSource;
 }
 
 export interface UpdateNoteDto {
   title?: string;
   content?: string;
   tags?: string[];
-  status?: 'inbox' | 'processed' | 'evergreen';
+  status?: NoteStatus;
+  links?: string[];
 }
 
 export interface SearchResult {
