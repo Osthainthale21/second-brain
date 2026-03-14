@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # ─── Second Brain API ──────────────────────────────────────────────
+  api:
+    build: .
+    container_name: second-brain-api
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - VAULT_PATH=/app/vault
+      - EXPORT_PATH=/app/vault/exports
+      - AUTH_API_KEYS=${AUTH_API_KEYS:-}
+      - AUTH_MASTER_KEY=${AUTH_MASTER_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-4-20250514}
+      - CHROMA_HOST=http://chromadb:8000
+      - CHROMA_COLLECTION=second_brain
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD:-secondbrain2024}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - NOTION_API_KEY=${NOTION_API_KEY:-}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - GOOGLE_REFRESH_TOKEN=${GOOGLE_REFRESH_TOKEN:-}
+    volumes:
+      - vault-data:/app/vault
+      - backup-data:/app/backups
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - brain-net
+
+  # ─── ChromaDB (Vector Database) ────────────────────────────────────
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: second-brain-chroma
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - brain-net
+
+  # ─── Neo4j (Knowledge Graph) ───────────────────────────────────────
+  neo4j:
+    image: neo4j:5-community
+    container_name: second-brain-neo4j
+    ports:
+      - "7474:7474"   # Browser
+      - "7687:7687"   # Bolt
+    volumes:
+      - neo4j-data:/data
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-secondbrain2024}
+      - NEO4J_PLUGINS=["apoc"]
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - brain-net
+
+  # ─── Redis (Queue & Cache) ─────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: second-brain-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - brain-net
+
+volumes:
+  vault-data:
+    driver: local
+  backup-data:
+    driver: local
+  chroma-data:
+    driver: local
+  neo4j-data:
+    driver: local
+  redis-data:
+    driver: local
+
+networks:
+  brain-net:
+    driver: bridge

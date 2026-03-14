@@ -1,0 +1,448 @@
+openapi: 3.0.3
+info:
+  title: Second Brain API
+  description: |
+    AI-Augmented Second Brain - ระบบจัดการความรู้อัจฉริยะ
+
+    ## Features
+    - CRUD notes (Markdown + YAML frontmatter)
+    - Semantic search (ChromaDB vectors)
+    - Knowledge Graph (Neo4j)
+    - RAG-powered Q&A (Claude AI)
+    - Telegram Bot integration
+    - Voice-to-text (Whisper)
+    - URL scraping & summarization
+    - Autonomous agents (auto-tag, auto-link, daily digest)
+    - Integrations (Notion, Google Drive, Calendar, Canva, Cloudflare)
+
+    ## Authentication
+    - Set `X-API-Key` header or `Authorization: Bearer <key>`
+    - Admin endpoints require master key
+    - Auth disabled in dev mode (no keys configured)
+  version: 1.0.0
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+tags:
+  - name: Notes
+    description: CRUD operations for notes
+  - name: Search
+    description: Semantic search and RAG Q&A
+  - name: Graph
+    description: Knowledge graph operations
+  - name: Ingest
+    description: Ingest content from various sources
+  - name: Agents
+    description: Autonomous background agents
+  - name: Integrations
+    description: Third-party integrations
+  - name: Admin
+    description: Backup, export, and system administration
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    Note:
+      type: object
+      properties:
+        frontmatter:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            title: { type: string }
+            tags: { type: array, items: { type: string } }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+            source: { type: string, enum: [api, telegram, web, notion, gdrive] }
+            status: { type: string, enum: [inbox, active, archive] }
+            links: { type: array, items: { type: string } }
+        content: { type: string }
+        filePath: { type: string }
+    CreateNote:
+      type: object
+      required: [title, content]
+      properties:
+        title: { type: string, example: "My first note" }
+        content: { type: string, example: "This is the content" }
+        tags: { type: array, items: { type: string }, example: ["ai", "notes"] }
+        source: { type: string, default: api }
+    UpdateNote:
+      type: object
+      properties:
+        title: { type: string }
+        content: { type: string }
+        tags: { type: array, items: { type: string } }
+        status: { type: string, enum: [inbox, active, archive] }
+    SearchQuery:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string, example: "machine learning" }
+        limit: { type: integer, default: 10 }
+        tags: { type: array, items: { type: string } }
+    AskQuery:
+      type: object
+      required: [query]
+      properties:
+        query: { type: string, example: "What do I know about AI?" }
+        limit: { type: integer, default: 5 }
+    SuccessResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data: {}
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error: { type: string }
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: Server is running
+
+  # ─── Notes ─────────────────────────────────────────────────
+  /api/notes:
+    get:
+      tags: [Notes]
+      summary: List all notes
+      parameters:
+        - name: tag
+          in: query
+          schema: { type: string }
+        - name: status
+          in: query
+          schema: { type: string, enum: [inbox, active, archive] }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: offset
+          in: query
+          schema: { type: integer, default: 0 }
+      responses:
+        '200':
+          description: List of notes
+    post:
+      tags: [Notes]
+      summary: Create a new note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateNote' }
+      responses:
+        '201':
+          description: Note created
+        '400':
+          description: Validation error
+
+  /api/notes/{id}:
+    get:
+      tags: [Notes]
+      summary: Get a single note
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Note found }
+        '404': { description: Note not found }
+    put:
+      tags: [Notes]
+      summary: Update a note
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateNote' }
+      responses:
+        '200': { description: Note updated }
+    delete:
+      tags: [Notes]
+      summary: Delete a note
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Note deleted }
+
+  # ─── Search ────────────────────────────────────────────────
+  /api/search:
+    post:
+      tags: [Search]
+      summary: Semantic search notes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SearchQuery' }
+      responses:
+        '200': { description: Search results }
+
+  /api/search/ask:
+    post:
+      tags: [Search]
+      summary: Ask your knowledge base (RAG)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AskQuery' }
+      responses:
+        '200': { description: AI-generated answer with sources }
+
+  /api/search/status:
+    get:
+      tags: [Search]
+      summary: Get search engine status
+      responses:
+        '200': { description: ChromaDB status }
+
+  # ─── Graph ─────────────────────────────────────────────────
+  /api/graph/note/{id}:
+    get:
+      tags: [Graph]
+      summary: Get note relationships in knowledge graph
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Note with relationships }
+
+  /api/graph/neighbors/{id}:
+    get:
+      tags: [Graph]
+      summary: Find related notes via graph traversal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: depth
+          in: query
+          schema: { type: integer, default: 2 }
+      responses:
+        '200': { description: Related notes }
+
+  /api/graph/stats:
+    get:
+      tags: [Graph]
+      summary: Knowledge graph statistics
+      responses:
+        '200': { description: Graph stats }
+
+  # ─── Ingest ────────────────────────────────────────────────
+  /api/ingest/url:
+    post:
+      tags: [Ingest]
+      summary: Scrape URL, summarize, and create note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: { type: string, format: uri }
+                tags: { type: array, items: { type: string } }
+      responses:
+        '201': { description: Note created from URL }
+
+  /api/ingest/text:
+    post:
+      tags: [Ingest]
+      summary: Create note with auto-tagging
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string }
+                title: { type: string }
+                tags: { type: array, items: { type: string } }
+                autoTag: { type: boolean, default: true }
+      responses:
+        '201': { description: Note created }
+
+  /api/ingest/voice:
+    post:
+      tags: [Ingest]
+      summary: Transcribe voice file and create note
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fileUrl]
+              properties:
+                fileUrl: { type: string, format: uri }
+                language: { type: string, default: th }
+                tags: { type: array, items: { type: string } }
+      responses:
+        '201': { description: Note created from voice }
+
+  # ─── Agents ────────────────────────────────────────────────
+  /api/agents/{name}/run:
+    post:
+      tags: [Agents]
+      summary: Manually trigger an agent
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema: { type: string, enum: [daily-digest, auto-linker, inbox-organizer] }
+      responses:
+        '200': { description: Agent result }
+
+  /api/agents/status:
+    get:
+      tags: [Agents]
+      summary: Get all agents status
+      responses:
+        '200': { description: Agent statuses }
+
+  # ─── Integrations ──────────────────────────────────────────
+  /api/integrations/notion/sync:
+    post:
+      tags: [Integrations]
+      summary: Sync notes from Notion
+      responses:
+        '200': { description: Sync result }
+
+  /api/integrations/gdrive/sync:
+    post:
+      tags: [Integrations]
+      summary: Sync documents from Google Drive
+      responses:
+        '200': { description: Sync result }
+
+  /api/integrations/gcalendar/today:
+    get:
+      tags: [Integrations]
+      summary: Get today's calendar events
+      responses:
+        '200': { description: Calendar events }
+
+  /api/integrations/status:
+    get:
+      tags: [Integrations]
+      summary: Get all integration statuses
+      responses:
+        '200': { description: Integration statuses }
+
+  # ─── Admin ─────────────────────────────────────────────────
+  /api/admin/health:
+    get:
+      tags: [Admin]
+      summary: Deep health check (all services)
+      responses:
+        '200': { description: System health }
+
+  /api/admin/vault/stats:
+    get:
+      tags: [Admin]
+      summary: Vault statistics
+      responses:
+        '200': { description: Vault stats }
+
+  /api/admin/backup:
+    post:
+      tags: [Admin]
+      summary: Create vault backup (master key required)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label: { type: string }
+      responses:
+        '201': { description: Backup created }
+    get:
+      tags: [Admin]
+      summary: List all backups
+      responses:
+        '200': { description: Backup list }
+
+  /api/admin/backup/restore:
+    post:
+      tags: [Admin]
+      summary: Restore from backup (master key required)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [backupName]
+              properties:
+                backupName: { type: string }
+      responses:
+        '200': { description: Restore result }
+
+  /api/admin/export/note:
+    post:
+      tags: [Admin]
+      summary: Export single note (md/json/html)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [noteId]
+              properties:
+                noteId: { type: string }
+                format: { type: string, enum: [markdown, json, html], default: markdown }
+      responses:
+        '200': { description: Export result }
+
+  /api/admin/export/bulk:
+    post:
+      tags: [Admin]
+      summary: Bulk export all notes as ZIP
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format: { type: string, enum: [markdown, json, html], default: markdown }
+                tags: { type: array, items: { type: string } }
+                status: { type: string }
+      responses:
+        '200': { description: ZIP export result }

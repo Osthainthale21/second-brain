@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Second Brain Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f0f0f; --surface: #1a1a2e; --surface2: #16213e;
+      --accent: #7c3aed; --accent2: #a78bfa; --text: #e2e8f0;
+      --text2: #94a3b8; --green: #34d399; --red: #f87171;
+      --yellow: #fbbf24; --blue: #60a5fa; --border: #334155;
+      --radius: 12px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Layout */
+    .app { display: grid; grid-template-columns: 260px 1fr; grid-template-rows: 60px 1fr; height: 100vh; }
+    .header { grid-column: 1 / -1; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; }
+    .sidebar { background: var(--surface); border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; }
+    .main { padding: 24px; overflow-y: auto; }
+
+    /* Header */
+    .logo { font-size: 1.4em; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .logo span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+    .search-box { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; color: var(--text); width: 400px; font-size: 0.95em; outline: none; }
+    .search-box:focus { border-color: var(--accent); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .status-dot.on { background: var(--green); }
+    .status-dot.off { background: var(--red); }
+
+    /* Sidebar */
+    .nav-section { margin-bottom: 24px; }
+    .nav-title { font-size: 0.75em; text-transform: uppercase; color: var(--text2); letter-spacing: 1px; margin-bottom: 8px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer; color: var(--text2); transition: all 0.2s; font-size: 0.9em; }
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent); color: white; }
+    .nav-badge { background: var(--accent); color: white; font-size: 0.7em; padding: 2px 8px; border-radius: 10px; margin-left: auto; }
+
+    /* Cards */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .stat-label { font-size: 0.8em; color: var(--text2); margin-bottom: 4px; }
+    .stat-value { font-size: 2em; font-weight: 700; }
+    .stat-value.purple { color: var(--accent2); }
+    .stat-value.green { color: var(--green); }
+    .stat-value.blue { color: var(--blue); }
+    .stat-value.yellow { color: var(--yellow); }
+
+    /* Notes List */
+    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .section-title { font-size: 1.2em; font-weight: 600; }
+    .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-size: 0.85em; transition: all 0.2s; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent2); }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text2); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent2); }
+    .btn-sm { padding: 4px 10px; font-size: 0.8em; }
+    .btn-danger { background: var(--red); color: white; }
+
+    .note-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s; }
+    .note-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .note-title { font-weight: 600; margin-bottom: 6px; }
+    .note-preview { color: var(--text2); font-size: 0.85em; line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .note-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .tag { background: var(--surface2); color: var(--accent2); padding: 2px 10px; border-radius: 20px; font-size: 0.75em; }
+    .note-date { color: var(--text2); font-size: 0.75em; margin-left: auto; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; width: 700px; max-height: 80vh; overflow-y: auto; padding: 24px; }
+    .modal-title { font-size: 1.3em; font-weight: 700; margin-bottom: 16px; display: flex; justify-content: space-between; }
+    .modal-close { cursor: pointer; color: var(--text2); font-size: 1.2em; background: none; border: none; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { font-size: 0.85em; color: var(--text2); margin-bottom: 6px; display: block; }
+    .form-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 0.9em; outline: none; }
+    .form-input:focus { border-color: var(--accent); }
+    textarea.form-input { min-height: 200px; resize: vertical; font-family: 'JetBrains Mono', monospace; }
+
+    /* Ask Panel */
+    .ask-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
+    .ask-input { display: flex; gap: 12px; }
+    .ask-input input { flex: 1; }
+    .ask-answer { margin-top: 16px; padding: 16px; background: var(--bg); border-radius: 8px; line-height: 1.6; white-space: pre-wrap; }
+    .ask-sources { margin-top: 12px; font-size: 0.85em; color: var(--text2); }
+
+    /* Services status */
+    .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; }
+    .service-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; display: flex; align-items: center; gap: 12px; }
+    .service-name { font-weight: 500; }
+    .service-status { font-size: 0.8em; color: var(--text2); }
+
+    /* Loading */
+    .loading { text-align: center; padding: 40px; color: var(--text2); }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .search-box { width: 200px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo">&#129504; <span>Second Brain</span></div>
+      <div class="header-actions">
+        <input type="text" class="search-box" id="globalSearch" placeholder="&#128269; ค้นหาโน้ต... (Enter เพื่อค้นหา)" />
+        <span class="status-dot" id="statusDot"></span>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <nav>
+        <div class="nav-section">
+          <div class="nav-title">Main</div>
+          <div class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">&#128202; Dashboard</div>
+          <div class="nav-item" data-view="notes" onclick="switchView('notes')">&#128221; All Notes <span class="nav-badge" id="noteCount">0</span></div>
+          <div class="nav-item" data-view="ask" onclick="switchView('ask')">&#129504; Ask AI</div>
+          <div class="nav-item" data-view="search" onclick="switchView('search')">&#128270; Search</div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-title">Tools</div>
+          <div class="nav-item" data-view="ingest" onclick="switchView('ingest')">&#128229; Ingest URL</div>
+          <div class="nav-item" data-view="graph" onclick="switchView('graph')">&#128736; Knowledge Graph</div>
+          <div class="nav-item" data-view="agents" onclick="switchView('agents')">&#129302; Agents</div>
+        </div>
+        <div class="nav-section">
+          <div class="nav-title">Admin</div>
+          <div class="nav-item" data-view="backup" onclick="switchView('backup')">&#128190; Backup</div>
+          <div class="nav-item" data-view="export" onclick="switchView('export')">&#128228; Export</div>
+          <div class="nav-item" data-view="services" onclick="switchView('services')">&#9881; Services</div>
+        </div>
+        <div class="nav-section" id="tagsNav">
+          <div class="nav-title">Tags</div>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main" id="mainContent">
+      <!-- Dashboard View (default) -->
+      <div id="view-dashboard"></div>
+      <div id="view-notes" style="display:none"></div>
+      <div id="view-ask" style="display:none"></div>
+      <div id="view-search" style="display:none"></div>
+      <div id="view-ingest" style="display:none"></div>
+      <div id="view-graph" style="display:none"></div>
+      <div id="view-agents" style="display:none"></div>
+      <div id="view-backup" style="display:none"></div>
+      <div id="view-export" style="display:none"></div>
+      <div id="view-services" style="display:none"></div>
+    </main>
+  </div>
+
+  <!-- Create Note Modal -->
+  <div class="modal-overlay" id="createModal">
+    <div class="modal">
+      <div class="modal-title">
+        &#128221; Create Note
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Title</label>
+        <input type="text" class="form-input" id="noteTitle" placeholder="Enter note title..." />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Content (Markdown)</label>
+        <textarea class="form-input" id="noteContent" placeholder="Write your note in Markdown..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tags (comma-separated)</label>
+        <input type="text" class="form-input" id="noteTags" placeholder="tag1, tag2, tag3" />
+      </div>
+      <div style="display:flex;gap:12px;justify-content:flex-end">
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="createNote()">&#10003; Save Note</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = '';
+    let allNotes = [];
+    let currentView = 'dashboard';
+
+    // ─── API Helpers ──────────────────────────────────────────────────
+    async function api(path, options = {}) {
+      const res = await fetch(`${API}${path}`, {
+        headers: { 'Content-Type': 'application/json', ...options.headers },
+        ...options,
+      });
+      return res.json();
+    }
+
+    // ─── View Switching ─────────────────────────────────────────────
+    function switchView(view) {
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      document.querySelector(`[data-view="${view}"]`)?.classList.add('active');
+      document.querySelectorAll('[id^="view-"]').forEach(el => el.style.display = 'none');
+      document.getElementById(`view-${view}`).style.display = 'block';
+      currentView = view;
+      loadView(view);
+    }
+
+    async function loadView(view) {
+      switch (view) {
+        case 'dashboard': return loadDashboard();
+        case 'notes': return loadNotes();
+        case 'ask': return loadAsk();
+        case 'search': return loadSearchView();
+        case 'ingest': return loadIngest();
+        case 'agents': return loadAgents();
+        case 'backup': return loadBackup();
+        case 'export': return loadExport();
+        case 'services': return loadServices();
+      }
+    }
+
+    // ─── Dashboard ──────────────────────────────────────────────────
+    async function loadDashboard() {
+      const el = document.getElementById('view-dashboard');
+      el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading...</div>';
+
+      const [notesRes, healthRes] = await Promise.all([
+        api('/api/notes?limit=5'),
+        api('/api/admin/health').catch(() => ({ data: { vault: { noteCount: 0 }, services: {} } })),
+      ]);
+
+      const notes = notesRes.data || [];
+      const health = healthRes.data || {};
+      const vault = health.vault || {};
+      allNotes = notes;
+
+      document.getElementById('noteCount').textContent = vault.noteCount || notes.length;
+
+      const serviceCount = health.services ? Object.values(health.services).filter(s => s && s.available).length : 0;
+
+      el.innerHTML = `
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-label">Total Notes</div><div class="stat-value purple">${vault.noteCount || notes.length}</div></div>
+          <div class="stat-card"><div class="stat-label">Vault Size</div><div class="stat-value blue">${vault.totalSizeHuman || '0 B'}</div></div>
+          <div class="stat-card"><div class="stat-label">Services Active</div><div class="stat-value green">${serviceCount}</div></div>
+          <div class="stat-card"><div class="stat-label">Backups</div><div class="stat-value yellow">${vault.backupCount || 0}</div></div>
+        </div>
+        <div class="section-header">
+          <div class="section-title">Recent Notes</div>
+          <button class="btn btn-primary" onclick="openModal()">+ New Note</button>
+        </div>
+        ${notes.map(renderNoteCard).join('')}
+        ${notes.length === 0 ? '<div class="loading">No notes yet. Create your first note!</div>' : ''}
+      `;
+    }
+
+    // ─── Notes List ─────────────────────────────────────────────────
+    async function loadNotes(tag) {
+      const el = document.getElementById('view-notes');
+      el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+      const url = tag ? `/api/notes?tag=${tag}&limit=100` : '/api/notes?limit=100';
+      const res = await api(url);
+      const notes = res.data || [];
+
+      el.innerHTML = `
+        <div class="section-header">
+          <div class="section-title">All Notes ${tag ? `(#${tag})` : ''} (${res.meta?.total || notes.length})</div>
+          <button class="btn btn-primary" onclick="openModal()">+ New Note</button>
+        </div>
+        ${notes.map(renderNoteCard).join('')}
+        ${notes.length === 0 ? '<div class="loading">No notes found</div>' : ''}
+      `;
+    }
+
+    // ─── Ask AI ─────────────────────────────────────────────────────
+    function loadAsk() {
+      const el = document.getElementById('view-ask');
+      if (el.querySelector('.ask-panel')) return;
+      el.innerHTML = `
+        <div class="section-title" style="margin-bottom:16px">Ask Your Knowledge Base</div>
+        <div class="ask-panel">
+          <div class="ask-input">
+            <input type="text" class="form-input" id="askInput" placeholder="Ask a question about your notes..." onkeypress="if(event.key==='Enter')askQuestion()" />
+            <button class="btn btn-primary" onclick="askQuestion()">Ask</button>
+          </div>
+          <div id="askResult"></div>
+        </div>
+      `;
+    }
+
+    async function askQuestion() {
+      const query = document.getElementById('askInput').value.trim();
+      if (!query) return;
+      const resultEl = document.getElementById('askResult');
+      resultEl.innerHTML = '<div class="loading"><div class="spinner"></div> Thinking...</div>';
+
+      const res = await api('/api/search/ask', { method: 'POST', body: JSON.stringify({ query }) });
+
+      if (res.success) {
+        resultEl.innerHTML = `
+          <div class="ask-answer">${res.data.answer}</div>
+          ${res.data.sources?.length ? `<div class="ask-sources">Sources: ${res.data.sources.map(s => s.title).join(', ')}</div>` : ''}
+        `;
+      } else {
+        resultEl.innerHTML = `<div class="ask-answer" style="color:var(--red)">${res.error || 'Error'}</div>`;
+      }
+    }
+
+    // ─── Search ─────────────────────────────────────────────────────
+    function loadSearchView() {
+      const el = document.getElementById('view-search');
+      if (el.querySelector('.ask-panel')) return;
+      el.innerHTML = `
+        <div class="section-title" style="margin-bottom:16px">Semantic Search</div>
+        <div class="ask-panel">
+          <div class="ask-input">
+            <input type="text" class="form-input" id="searchInput" placeholder="Search your notes..." onkeypress="if(event.key==='Enter')doSearch()" />
+            <button class="btn btn-primary" onclick="doSearch()">Search</button>
+          </div>
+          <div id="searchResults"></div>
+        </div>
+      `;
+    }
+
+    async function doSearch(query) {
+      query = query || document.getElementById('searchInput')?.value?.trim();
+      if (!query) return;
+      const el = document.getElementById('searchResults') || document.getElementById('view-search');
+      el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+      const res = await api('/api/search', { method: 'POST', body: JSON.stringify({ query }) });
+      const results = res.data || [];
+
+      el.innerHTML = results.length
+        ? results.map(r => renderNoteCard(r.note, `Score: ${(r.score * 100).toFixed(0)}%`)).join('')
+        : '<div class="loading">No results found</div>';
+    }
+
+    // ─── Ingest URL ─────────────────────────────────────────────────
+    function loadIngest() {
+      const el = document.getElementById('view-ingest');
+      el.innerHTML = `
+        <div class="section-title" style="margin-bottom:16px">Ingest from URL</div>
+        <div class="ask-panel">
+          <div class="ask-input">
+            <input type="text" class="form-input" id="ingestUrl" placeholder="Paste a URL to scrape and save..." />
+            <button class="btn btn-primary" onclick="ingestUrl()">Ingest</button>
+          </div>
+          <div id="ingestResult"></div>
+        </div>
+      `;
+    }
+
+    async function ingestUrl() {
+      const url = document.getElementById('ingestUrl').value.trim();
+      if (!url) return;
+      document.getElementById('ingestResult').innerHTML = '<div class="loading"><div class="spinner"></div> Scraping...</div>';
+
+      const res = await api('/api/ingest/url', { method: 'POST', body: JSON.stringify({ url }) });
+      const el = document.getElementById('ingestResult');
+
+      if (res.success) {
+        el.innerHTML = `<div class="ask-answer">Saved: <strong>${res.data.note?.frontmatter?.title || 'Note'}</strong><br>Summary: ${res.data.scraped?.summary || 'N/A'}</div>`;
+      } else {
+        el.innerHTML = `<div class="ask-answer" style="color:var(--red)">${res.error}</div>`;
+      }
+    }
+
+    // ─── Agents ─────────────────────────────────────────────────────
+    async function loadAgents() {
+      const el = document.getElementById('view-agents');
+      el.innerHTML = `
+        <div class="section-title" style="margin-bottom:16px">Autonomous Agents</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Daily Digest</div>
+            <div style="margin:8px 0">Summarizes your daily notes</div>
+            <button class="btn btn-primary btn-sm" onclick="runAgent('daily-digest')">Run Now</button>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Auto Linker</div>
+            <div style="margin:8px 0">Finds connections between notes</div>
+            <button class="btn btn-primary btn-sm" onclick="runAgent('auto-linker')">Run Now</button>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Inbox Organizer</div>
+            <div style="margin:8px 0">Auto-tags and categorizes inbox</div>
+            <button class="btn btn-primary btn-sm" onclick="runAgent('inbox-organizer')">Run Now</button>
+          </div>
+        </div>
+        <div id="agentResult" style="margin-top:16px"></div>
+      `;
+    }
+
+    async function runAgent(name) {
+      document.getElementById('agentResult').innerHTML = '<div class="loading"><div class="spinner"></div> Running agent...</div>';
+      const res = await api(`/api/agents/${name}/run`, { method: 'POST' });
+      document.getElementById('agentResult').innerHTML = `<div class="ask-panel"><div class="ask-answer">${JSON.stringify(res.data || res, null, 2)}</div></div>`;
+    }
+
+    // ─── Backup ─────────────────────────────────────────────────────
+    async function loadBackup() {
+      const el = document.getElementById('view-backup');
+      el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+      const res = await api('/api/admin/backup').catch(() => ({ data: [] }));
+      const backups = res.data || [];
+
+      el.innerHTML = `
+        <div class="section-header">
+          <div class="section-title">Backups (${backups.length})</div>
+          <button class="btn btn-primary" onclick="createBackup()">+ Create Backup</button>
+        </div>
+        ${backups.map(b => `
+          <div class="note-card">
+            <div class="note-title">${b.name}</div>
+            <div class="note-meta">
+              <span class="tag">${b.sizeHuman}</span>
+              <span class="tag">${b.noteCount} notes</span>
+              <span class="note-date">${new Date(b.createdAt).toLocaleString('th-TH')}</span>
+            </div>
+          </div>
+        `).join('')}
+        ${backups.length === 0 ? '<div class="loading">No backups yet</div>' : ''}
+      `;
+    }
+
+    async function createBackup() {
+      const res = await api('/api/admin/backup', { method: 'POST', body: JSON.stringify({ label: 'manual' }) });
+      if (res.success) loadBackup();
+    }
+
+    // ─── Export ──────────────────────────────────────────────────────
+    function loadExport() {
+      const el = document.getElementById('view-export');
+      el.innerHTML = `
+        <div class="section-title" style="margin-bottom:16px">Export Notes</div>
+        <div class="stats-grid">
+          <div class="stat-card" onclick="exportBulk('markdown')" style="cursor:pointer">
+            <div class="stat-label">Markdown</div>
+            <div class="stat-value blue">ZIP</div>
+          </div>
+          <div class="stat-card" onclick="exportBulk('json')" style="cursor:pointer">
+            <div class="stat-label">JSON</div>
+            <div class="stat-value green">ZIP</div>
+          </div>
+          <div class="stat-card" onclick="exportBulk('html')" style="cursor:pointer">
+            <div class="stat-label">HTML</div>
+            <div class="stat-value purple">ZIP</div>
+          </div>
+        </div>
+        <div id="exportResult" style="margin-top:16px"></div>
+      `;
+    }
+
+    async function exportBulk(format) {
+      document.getElementById('exportResult').innerHTML = '<div class="loading"><div class="spinner"></div> Exporting...</div>';
+      const res = await api('/api/admin/export/bulk', { method: 'POST', body: JSON.stringify({ format }) });
+      document.getElementById('exportResult').innerHTML = res.success
+        ? `<div class="ask-panel"><div class="ask-answer">Exported ${res.data.noteCount} notes as ${format} (${res.data.fileName})</div></div>`
+        : `<div class="ask-panel"><div class="ask-answer" style="color:var(--red)">${res.error}</div></div>`;
+    }
+
+    // ─── Services Status ────────────────────────────────────────────
+    async function loadServices() {
+      const el = document.getElementById('view-services');
+      el.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+      const res = await api('/api/admin/health').catch(() => ({ data: { services: {} } }));
+      const services = res.data?.services || {};
+
+      el.innerHTML = `
+        <div class="section-title" style="margin-bottom:16px">Service Status</div>
+        <div class="services-grid">
+          ${Object.entries(services).map(([name, info]) => `
+            <div class="service-card">
+              <span class="status-dot ${info?.available ? 'on' : 'off'}"></span>
+              <div>
+                <div class="service-name">${name}</div>
+                <div class="service-status">${info?.available ? 'Connected' : 'Offline'}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    // ─── Note Card Renderer ─────────────────────────────────────────
+    function renderNoteCard(note, extra) {
+      const fm = note.frontmatter;
+      const preview = (note.content || '').substring(0, 150).replace(/[#*`]/g, '');
+      const date = new Date(fm.created_at).toLocaleDateString('th-TH');
+      const tags = (fm.tags || []).map(t => `<span class="tag">#${t}</span>`).join('');
+
+      return `
+        <div class="note-card" onclick="viewNote('${fm.id}')">
+          <div class="note-title">${fm.title}</div>
+          <div class="note-preview">${preview}</div>
+          <div class="note-meta">
+            ${tags}
+            ${extra ? `<span class="tag" style="background:var(--accent);color:white">${extra}</span>` : ''}
+            <span class="note-date">${date}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // ─── View Note Detail ───────────────────────────────────────────
+    async function viewNote(id) {
+      const res = await api(`/api/notes/${id}`);
+      if (!res.success) return;
+      const note = res.data;
+      const fm = note.frontmatter;
+
+      const modal = document.getElementById('createModal');
+      modal.querySelector('.modal-title').innerHTML = `
+        ${fm.title}
+        <div>
+          <button class="btn btn-sm btn-outline" onclick="deleteNote('${id}')" style="margin-right:4px">Delete</button>
+          <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+      `;
+      document.getElementById('noteTitle').value = fm.title;
+      document.getElementById('noteContent').value = note.content;
+      document.getElementById('noteTags').value = (fm.tags || []).join(', ');
+      modal.classList.add('show');
+      modal.dataset.editId = id;
+    }
+
+    // ─── CRUD ───────────────────────────────────────────────────────
+    function openModal() {
+      const modal = document.getElementById('createModal');
+      modal.querySelector('.modal-title').innerHTML = '&#128221; Create Note <button class="modal-close" onclick="closeModal()">&times;</button>';
+      document.getElementById('noteTitle').value = '';
+      document.getElementById('noteContent').value = '';
+      document.getElementById('noteTags').value = '';
+      delete modal.dataset.editId;
+      modal.classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('createModal').classList.remove('show');
+    }
+
+    async function createNote() {
+      const title = document.getElementById('noteTitle').value.trim();
+      const content = document.getElementById('noteContent').value.trim();
+      const tags = document.getElementById('noteTags').value.split(',').map(t => t.trim()).filter(Boolean);
+      if (!title) return alert('Title is required');
+
+      const modal = document.getElementById('createModal');
+      const editId = modal.dataset.editId;
+
+      if (editId) {
+        await api(`/api/notes/${editId}`, { method: 'PUT', body: JSON.stringify({ title, content, tags }) });
+      } else {
+        await api('/api/notes', { method: 'POST', body: JSON.stringify({ title, content, tags }) });
+      }
+
+      closeModal();
+      loadView(currentView);
+    }
+
+    async function deleteNote(id) {
+      if (!confirm('Delete this note?')) return;
+      await api(`/api/notes/${id}`, { method: 'DELETE' });
+      closeModal();
+      loadView(currentView);
+    }
+
+    // ─── Global Search ──────────────────────────────────────────────
+    document.getElementById('globalSearch').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        switchView('search');
+        setTimeout(() => {
+          document.getElementById('searchInput').value = e.target.value;
+          doSearch(e.target.value);
+        }, 100);
+      }
+    });
+
+    // ─── Load Tags in Sidebar ───────────────────────────────────────
+    async function loadTags() {
+      const res = await api('/api/notes?limit=10000');
+      const notes = res.data || [];
+      const tagCounts = {};
+      notes.forEach(n => (n.frontmatter.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; }));
+      const sorted = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+      const el = document.getElementById('tagsNav');
+      el.innerHTML = '<div class="nav-title">Tags</div>' +
+        sorted.map(([tag, count]) =>
+          `<div class="nav-item" onclick="switchView('notes');loadNotes('${tag}')">#${tag} <span class="nav-badge">${count}</span></div>`
+        ).join('');
+    }
+
+    // ─── Init ───────────────────────────────────────────────────────
+    async function init() {
+      const dot = document.getElementById('statusDot');
+      try {
+        await api('/health');
+        dot.classList.add('on');
+      } catch {
+        dot.classList.add('off');
+      }
+      loadDashboard();
+      loadTags();
+    }
+
+    init();
+  </script>
+</body>
+</html>

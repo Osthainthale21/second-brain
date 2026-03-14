@@ -2,6 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'path';
+import fs from 'fs';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yaml';
 import { errorHandler } from './middleware/errorHandler';
 import { requireAuth } from './middleware/auth';
 import { generalLimiter, llmLimiter, ingestLimiter } from './middleware/rateLimiter';
@@ -16,10 +20,23 @@ import adminRouter from './routes/admin.routes';
 const app = express();
 
 // ─── Global Middleware ──────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false })); // Disable CSP for inline scripts in dashboard
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('short'));
+
+// ─── Dashboard (static files) ───────────────────────────────────────
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+// ─── Swagger API Docs ───────────────────────────────────────────────
+const swaggerPath = path.join(__dirname, '..', 'docs', 'openapi.yaml');
+if (fs.existsSync(swaggerPath)) {
+  const swaggerDoc = YAML.parse(fs.readFileSync(swaggerPath, 'utf-8'));
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Second Brain API Docs',
+  }));
+}
 
 // ─── Public Routes (no auth) ───────────────────────────────────────
 app.get('/health', (_req, res) => {
