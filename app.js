@@ -1177,6 +1177,269 @@ function showInfoModal(content){
 // ===== UTILITY =====
 function esc(str){ const d=document.createElement('div');d.textContent=str||'';return d.innerHTML; }
 
+// ===== CLOUD SYNC =====
+const SYNC_API = 'https://second-brain-sync.wrangsom.workers.dev';
+let syncState = JSON.parse(localStorage.getItem('sb_sync') || 'null');
+
+function getDeviceId() {
+    let id = localStorage.getItem('sb_device_id');
+    if (!id) { id = 'dev_' + Date.now().toString(36) + Math.random().toString(36).slice(2,6); localStorage.setItem('sb_device_id', id); }
+    return id;
+}
+
+function syncLog(msg, type='info') {
+    const el = document.getElementById('sync-log');
+    if (!el) return;
+    const time = new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+    el.innerHTML = `<div class="sync-log-entry"><span class="sync-log-time">${time}</span><span class="sync-log-msg ${type}">${msg}</span></div>` + el.innerHTML;
+    // Keep only 50 entries
+    while (el.children.length > 50) el.removeChild(el.lastChild);
+}
+
+function clearSyncLog() { const el = document.getElementById('sync-log'); if(el) el.innerHTML = ''; }
+
+function syncToast(msg, isError=false) {
+    let t = document.getElementById('sync-toast');
+    if (!t) { t = document.createElement('div'); t.id='sync-toast'; t.className='sync-toast'; document.body.appendChild(t); }
+    t.className = 'sync-toast' + (isError ? ' error' : '');
+    t.innerHTML = `<i class="ri-${isError?'error-warning':'check'}-line" style="color:var(--accent-${isError?'red':'green'});font-size:18px"></i> ${msg}`;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+function updateSyncUI() {
+    const bar = document.getElementById('sync-status-bar');
+    const icon = document.getElementById('sync-status-icon');
+    const text = document.getElementById('sync-status-text');
+    const sub = document.getElementById('sync-status-sub');
+    const notConn = document.getElementById('sync-not-connected');
+    const connected = document.getElementById('sync-connected');
+    const regForm = document.getElementById('sync-register-form');
+    const conForm = document.getElementById('sync-connect-form');
+
+    if (!bar) return;
+
+    if (syncState && syncState.code) {
+        bar.className = 'sync-status-bar connected';
+        icon.innerHTML = '<i class="ri-cloud-line"></i>';
+        text.textContent = 'เชื่อมต่อแล้ว';
+        sub.textContent = `Sync Code: ${syncState.code}` + (syncState.lastSync ? ` | Last sync: ${new Date(syncState.lastSync).toLocaleString('th-TH')}` : '');
+        notConn.style.display = 'none';
+        regForm.style.display = 'none';
+        conForm.style.display = 'none';
+        connected.style.display = 'block';
+        document.getElementById('sync-code-show').textContent = syncState.code;
+        document.getElementById('sync-last-time').textContent = syncState.lastSync ? new Date(syncState.lastSync).toLocaleString('th-TH') : 'ยังไม่เคย sync';
+        document.getElementById('sync-device-id').textContent = getDeviceId();
+    } else {
+        bar.className = 'sync-status-bar';
+        icon.innerHTML = '<i class="ri-cloud-off-line"></i>';
+        text.textContent = 'ยังไม่ได้เชื่อมต่อ';
+        sub.textContent = 'สร้าง Sync Code หรือใส่รหัสเพื่อเริ่มต้น';
+        notConn.style.display = 'block';
+        regForm.style.display = 'none';
+        conForm.style.display = 'none';
+        connected.style.display = 'none';
+    }
+}
+
+function showSyncMain() {
+    document.getElementById('sync-not-connected').style.display = 'block';
+    document.getElementById('sync-register-form').style.display = 'none';
+    document.getElementById('sync-connect-form').style.display = 'none';
+}
+function showSyncRegister() {
+    document.getElementById('sync-not-connected').style.display = 'none';
+    document.getElementById('sync-register-form').style.display = 'block';
+    document.getElementById('sync-connect-form').style.display = 'none';
+}
+function showSyncConnect() {
+    document.getElementById('sync-not-connected').style.display = 'none';
+    document.getElementById('sync-register-form').style.display = 'none';
+    document.getElementById('sync-connect-form').style.display = 'block';
+}
+
+async function registerSync() {
+    const pin = document.getElementById('sync-new-pin').value;
+    const pin2 = document.getElementById('sync-new-pin2').value;
+    if (!pin || pin.length < 4) { syncToast('PIN ต้องมีอย่างน้อย 4 หลัก', true); return; }
+    if (pin !== pin2) { syncToast('PIN ไม่ตรงกัน', true); return; }
+
+    const bar = document.getElementById('sync-status-bar');
+    bar.className = 'sync-status-bar syncing';
+    document.getElementById('sync-status-icon').innerHTML = '<i class="ri-loader-4-line"></i>';
+    document.getElementById('sync-status-text').textContent = 'กำลังสร้าง...';
+    syncLog('กำลังสร้าง Sync Code...', 'info');
+
+    try {
+        const res = await fetch(SYNC_API + '/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+
+        syncState = { code: data.code, pin, lastSync: null };
+        localStorage.setItem('sb_sync', JSON.stringify(syncState));
+        syncLog(`สร้าง Sync Code สำเร็จ: ${data.code}`, 'success');
+        syncToast(`สร้างสำเร็จ! Code: ${data.code}`);
+        updateSyncUI();
+    } catch(e) {
+        syncLog('ผิดพลาด: ' + e.message, 'error');
+        syncToast(e.message, true);
+        updateSyncUI();
+    }
+}
+
+async function connectSync() {
+    const code = document.getElementById('sync-code-input').value.trim().toUpperCase();
+    const pin = document.getElementById('sync-pin-input').value;
+    if (!code || !pin) { syncToast('กรุณาใส่ Sync Code และ PIN', true); return; }
+
+    const bar = document.getElementById('sync-status-bar');
+    bar.className = 'sync-status-bar syncing';
+    document.getElementById('sync-status-icon').innerHTML = '<i class="ri-loader-4-line"></i>';
+    document.getElementById('sync-status-text').textContent = 'กำลังเชื่อมต่อ...';
+    syncLog('กำลังตรวจสอบ Sync Code...', 'info');
+
+    try {
+        const res = await fetch(SYNC_API + '/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, pin })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'เกิดข้อผิดพลาด');
+
+        syncState = { code, pin, lastSync: data.lastSync };
+        localStorage.setItem('sb_sync', JSON.stringify(syncState));
+        syncLog(`เชื่อมต่อสำเร็จ! Code: ${code}`, 'success');
+        syncToast('เชื่อมต่อสำเร็จ!');
+        updateSyncUI();
+    } catch(e) {
+        syncLog('ผิดพลาด: ' + e.message, 'error');
+        syncToast(e.message, true);
+        updateSyncUI();
+    }
+}
+
+async function syncPush() {
+    if (!syncState || !syncState.code) { syncToast('ยังไม่ได้เชื่อมต่อ', true); return; }
+
+    const bar = document.getElementById('sync-status-bar');
+    bar.className = 'sync-status-bar syncing';
+    document.getElementById('sync-status-icon').innerHTML = '<i class="ri-loader-4-line"></i>';
+    document.getElementById('sync-status-text').textContent = 'กำลัง Push...';
+    syncLog('กำลังอัปโหลดข้อมูลขึ้น Cloud...', 'info');
+
+    try {
+        const res = await fetch(SYNC_API + '/push', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Sync-Code': syncState.code,
+                'X-Sync-Pin': syncState.pin
+            },
+            body: JSON.stringify({
+                data: D,
+                timestamp: new Date().toISOString(),
+                deviceId: getDeviceId()
+            })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Push ล้มเหลว');
+
+        syncState.lastSync = result.timestamp;
+        localStorage.setItem('sb_sync', JSON.stringify(syncState));
+        syncLog(`Push สำเร็จ! (${(JSON.stringify(D).length/1024).toFixed(1)} KB)`, 'success');
+        syncToast('Push ขึ้น Cloud สำเร็จ!');
+        updateSyncUI();
+    } catch(e) {
+        syncLog('Push ผิดพลาด: ' + e.message, 'error');
+        syncToast('Push ล้มเหลว: ' + e.message, true);
+        updateSyncUI();
+    }
+}
+
+async function syncPull() {
+    if (!syncState || !syncState.code) { syncToast('ยังไม่ได้เชื่อมต่อ', true); return; }
+
+    const bar = document.getElementById('sync-status-bar');
+    bar.className = 'sync-status-bar syncing';
+    document.getElementById('sync-status-icon').innerHTML = '<i class="ri-loader-4-line"></i>';
+    document.getElementById('sync-status-text').textContent = 'กำลัง Pull...';
+    syncLog('กำลังดึงข้อมูลจาก Cloud...', 'info');
+
+    try {
+        const res = await fetch(SYNC_API + '/pull', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Sync-Code': syncState.code,
+                'X-Sync-Pin': syncState.pin
+            }
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Pull ล้มเหลว');
+
+        if (!result.data) {
+            syncLog('ยังไม่มีข้อมูลบน Cloud — Push ก่อน', 'info');
+            syncToast('ยังไม่มีข้อมูลบน Cloud', true);
+            updateSyncUI();
+            return;
+        }
+
+        // Merge: replace local with cloud data
+        const cloudData = result.data;
+        Object.assign(D, cloudData);
+        save();
+        syncState.lastSync = result.pushedAt;
+        localStorage.setItem('sb_sync', JSON.stringify(syncState));
+
+        // Re-render everything
+        renderAll();
+        syncLog(`Pull สำเร็จ! จากอุปกรณ์: ${result.deviceId || 'unknown'} (${(JSON.stringify(cloudData).length/1024).toFixed(1)} KB)`, 'success');
+        syncToast('Pull จาก Cloud สำเร็จ! ข้อมูลอัปเดตแล้ว');
+        updateSyncUI();
+    } catch(e) {
+        syncLog('Pull ผิดพลาด: ' + e.message, 'error');
+        syncToast('Pull ล้มเหลว: ' + e.message, true);
+        updateSyncUI();
+    }
+}
+
+function disconnectSync() {
+    if (!confirm('ตัดการเชื่อมต่อ? (ข้อมูลในเครื่องจะยังอยู่)')) return;
+    syncState = null;
+    localStorage.removeItem('sb_sync');
+    syncLog('ตัดการเชื่อมต่อแล้ว', 'info');
+    syncToast('ตัดการเชื่อมต่อแล้ว');
+    updateSyncUI();
+}
+
+function copySyncCode() {
+    if (syncState && syncState.code) {
+        navigator.clipboard.writeText(syncState.code).then(()=>syncToast('คัดลอก Sync Code แล้ว!')).catch(()=>syncToast('คัดลอกไม่ได้',true));
+    }
+}
+
+// Auto-sync on page load if connected
+function autoSyncCheck() {
+    updateSyncUI();
+    if (syncState && syncState.code && syncState.lastSync) {
+        const last = new Date(syncState.lastSync).getTime();
+        const now = Date.now();
+        // If last sync > 5 min ago, show reminder
+        if (now - last > 5 * 60 * 1000) {
+            syncLog('ข้อมูลอาจไม่ตรงกัน — ลอง Pull หรือ Push', 'info');
+        }
+    }
+}
+
+// Init sync on load
+setTimeout(autoSyncCheck, 1000);
+
 // ===== PWA =====
 if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(()=>{});

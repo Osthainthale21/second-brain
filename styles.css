@@ -453,3 +453,50 @@ body{font-family:'Inter','Noto Sans Thai',sans-serif;background:var(--bg-primary
     .grid-2,.grid-3{grid-template-columns:1fr}
     .eisenhower-grid{grid-template-columns:1fr}
 }
+
+/* ===== CLOUD SYNC ===== */
+.sync-status-bar{display:flex;align-items:center;gap:16px;padding:16px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);transition:all .3s}
+.sync-status-bar.connected{border-color:rgba(52,211,153,.3);background:linear-gradient(135deg,rgba(52,211,153,.05),rgba(34,211,238,.05))}
+.sync-status-bar.syncing{border-color:rgba(74,125,255,.3)}
+.sync-status-icon{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:var(--bg-input);color:var(--text-secondary);transition:all .3s}
+.sync-status-bar.connected .sync-status-icon{background:var(--accent-green-glow);color:var(--accent-green)}
+.sync-status-bar.syncing .sync-status-icon{background:var(--accent-blue-glow);color:var(--accent-blue);animation:spin 1s linear infinite}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.sync-status-text{font-size:15px;font-weight:600}
+.sync-status-sub{font-size:12px;color:var(--text-secondary);margin-top:2px}
+
+.sync-option-card{display:flex;align-items:center;gap:14px;padding:16px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-md);cursor:pointer;transition:all .2s;margin-bottom:10px}
+.sync-option-card:hover{border-color:var(--border-light);transform:translateX(4px)}
+.sync-option-card h4{font-size:14px;font-weight:600}
+.sync-option-card p{font-size:12px;color:var(--text-secondary);margin-top:2px}
+.sync-option-icon{width:42px;height:42px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+
+.sync-code-display{text-align:center;padding:20px;background:var(--bg-input);border:1px dashed var(--border-light);border-radius:var(--radius-lg);margin-bottom:16px}
+.sync-code-label{font-size:11px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.sync-code-value{font-size:32px;font-weight:700;letter-spacing:4px;font-family:'JetBrains Mono',monospace;background:linear-gradient(135deg,var(--accent-cyan),var(--accent-blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px}
+
+.sync-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sync-info-item{background:var(--bg-input);padding:10px 14px;border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:4px}
+.sync-info-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+.sync-info-item span:last-child{font-size:12px;font-weight:500}
+
+.sync-guide{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.sync-step{display:flex;align-items:flex-start;gap:12px}
+.sync-step-num{width:28px;height:28px;border-radius:50%;background:var(--accent-blue-glow);color:var(--accent-blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.sync-step h4{font-size:13px;font-weight:600}
+.sync-step p{font-size:11px;color:var(--text-secondary);margin-top:2px}
+
+.sync-note{display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.15);border-radius:var(--radius-sm);font-size:11px;color:var(--accent-green)}
+
+.sync-log-entry{padding:5px 0;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center}
+.sync-log-entry:last-child{border-bottom:none}
+.sync-log-time{color:var(--text-muted);min-width:60px}
+.sync-log-msg{color:var(--text-secondary)}
+.sync-log-msg.success{color:var(--accent-green)}
+.sync-log-msg.error{color:var(--accent-red)}
+.sync-log-msg.info{color:var(--accent-blue)}
+
+.sync-toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;background:var(--bg-card);border:1px solid var(--accent-green);border-radius:var(--radius-md);display:flex;align-items:center;gap:10px;font-size:13px;font-weight:500;z-index:10000;box-shadow:var(--shadow-lg);animation:slideUp .3s ease;opacity:0;pointer-events:none;transition:opacity .3s}
+.sync-toast.show{opacity:1;pointer-events:auto}
+.sync-toast.error{border-color:var(--accent-red)}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}

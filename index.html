@@ -131,6 +131,7 @@
                 <div class="nav-item" data-page="vision"><i class="ri-image-line"></i> Vision Board</div>
                 <div class="nav-item" data-page="templates"><i class="ri-file-copy-2-line"></i> Templates</div>
                 <div class="nav-item" data-page="achievements"><i class="ri-trophy-line"></i> Achievements</div>
+                <div class="nav-item" data-page="cloudsync"><i class="ri-cloud-line"></i> Cloud Sync</div>
             </div>
         </nav>
         <div class="sidebar-footer">
@@ -249,6 +250,105 @@
 
         <!-- ACHIEVEMENTS -->
         <div class="page" id="page-achievements"><h2>Achievements</h2><p class="page-desc">ความสำเร็จและรางวัล</p><div class="achievements-grid" id="achievements-list"></div></div>
+
+        <!-- CLOUD SYNC -->
+        <div class="page" id="page-cloudsync">
+            <h2><i class="ri-cloud-line" style="color:var(--accent-cyan)"></i> Cloud Sync</h2>
+            <p class="page-desc">ซิงค์ข้อมูลข้ามอุปกรณ์ — ใช้ได้ทุกที่</p>
+
+            <!-- Sync Status -->
+            <div class="sync-status-bar" id="sync-status-bar">
+                <div class="sync-status-icon" id="sync-status-icon"><i class="ri-cloud-off-line"></i></div>
+                <div class="sync-status-info">
+                    <div class="sync-status-text" id="sync-status-text">ยังไม่ได้เชื่อมต่อ</div>
+                    <div class="sync-status-sub" id="sync-status-sub">สร้าง Sync Code หรือใส่รหัสเพื่อเริ่มต้น</div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-top:20px">
+                <!-- Setup Panel -->
+                <div class="card">
+                    <div class="card-header"><span class="card-title"><i class="ri-settings-3-line"></i> ตั้งค่า Sync</span></div>
+                    <div class="card-body" id="sync-setup-panel">
+                        <!-- Not connected state -->
+                        <div id="sync-not-connected">
+                            <div class="sync-option-card" onclick="showSyncRegister()">
+                                <div class="sync-option-icon" style="background:var(--accent-blue-glow);color:var(--accent-blue)"><i class="ri-add-circle-line"></i></div>
+                                <div>
+                                    <h4>สร้าง Sync Code ใหม่</h4>
+                                    <p>สำหรับอุปกรณ์เครื่องแรก</p>
+                                </div>
+                            </div>
+                            <div class="sync-option-card" onclick="showSyncConnect()">
+                                <div class="sync-option-icon" style="background:var(--accent-green-glow);color:var(--accent-green)"><i class="ri-link"></i></div>
+                                <div>
+                                    <h4>เชื่อมต่อด้วย Sync Code</h4>
+                                    <p>มี Code อยู่แล้วจากอุปกรณ์อื่น</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Register form -->
+                        <div id="sync-register-form" style="display:none">
+                            <h4 style="margin-bottom:12px"><i class="ri-add-circle-line" style="color:var(--accent-blue)"></i> สร้าง Sync Code ใหม่</h4>
+                            <div class="form-group"><label class="form-label">ตั้ง PIN (4+ หลัก) — ป้องกันข้อมูล</label><input class="form-input" id="sync-new-pin" type="password" placeholder="เช่น 1234" maxlength="8"></div>
+                            <div class="form-group"><label class="form-label">ยืนยัน PIN</label><input class="form-input" id="sync-new-pin2" type="password" placeholder="ใส่อีกครั้ง" maxlength="8"></div>
+                            <div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="registerSync()"><i class="ri-check-line"></i> สร้าง</button><button class="btn btn-secondary" onclick="showSyncMain()"><i class="ri-arrow-left-line"></i> กลับ</button></div>
+                        </div>
+
+                        <!-- Connect form -->
+                        <div id="sync-connect-form" style="display:none">
+                            <h4 style="margin-bottom:12px"><i class="ri-link" style="color:var(--accent-green)"></i> เชื่อมต่อด้วย Sync Code</h4>
+                            <div class="form-group"><label class="form-label">Sync Code</label><input class="form-input" id="sync-code-input" placeholder="XXXX-XXXX" style="text-transform:uppercase;letter-spacing:2px;text-align:center;font-size:18px;font-weight:700" maxlength="9"></div>
+                            <div class="form-group"><label class="form-label">PIN</label><input class="form-input" id="sync-pin-input" type="password" placeholder="PIN ที่ตั้งไว้"></div>
+                            <div style="display:flex;gap:8px"><button class="btn btn-success" onclick="connectSync()"><i class="ri-link"></i> เชื่อมต่อ</button><button class="btn btn-secondary" onclick="showSyncMain()"><i class="ri-arrow-left-line"></i> กลับ</button></div>
+                        </div>
+
+                        <!-- Connected state -->
+                        <div id="sync-connected" style="display:none">
+                            <div class="sync-code-display">
+                                <div class="sync-code-label">Sync Code ของคุณ</div>
+                                <div class="sync-code-value" id="sync-code-show">XXXX-XXXX</div>
+                                <button class="btn btn-sm btn-secondary" onclick="copySyncCode()"><i class="ri-file-copy-line"></i> คัดลอก</button>
+                            </div>
+                            <div class="sync-info-grid">
+                                <div class="sync-info-item"><span class="sync-info-label">Last Sync</span><span id="sync-last-time">-</span></div>
+                                <div class="sync-info-item"><span class="sync-info-label">Device ID</span><span id="sync-device-id">-</span></div>
+                            </div>
+                            <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+                                <button class="btn btn-primary" onclick="syncPush()"><i class="ri-upload-cloud-2-line"></i> Push ขึ้น Cloud</button>
+                                <button class="btn btn-success" onclick="syncPull()"><i class="ri-download-cloud-2-line"></i> Pull จาก Cloud</button>
+                                <button class="btn btn-danger btn-sm" onclick="disconnectSync()"><i class="ri-link-unlink"></i> ตัดการเชื่อมต่อ</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sync Actions -->
+                <div class="card">
+                    <div class="card-header"><span class="card-title"><i class="ri-information-line"></i> วิธีใช้</span></div>
+                    <div class="card-body">
+                        <div class="sync-guide">
+                            <div class="sync-step"><div class="sync-step-num">1</div><div><h4>สร้าง Sync Code</h4><p>กดสร้างรหัสบนอุปกรณ์เครื่องแรก พร้อมตั้ง PIN</p></div></div>
+                            <div class="sync-step"><div class="sync-step-num">2</div><div><h4>Push ข้อมูลขึ้น Cloud</h4><p>กด Push เพื่ออัปโหลดข้อมูลจากเครื่องนี้</p></div></div>
+                            <div class="sync-step"><div class="sync-step-num">3</div><div><h4>เชื่อมต่อจากเครื่องอื่น</h4><p>เปิดเว็บบนอุปกรณ์อื่น ใส่ Sync Code + PIN</p></div></div>
+                            <div class="sync-step"><div class="sync-step-num">4</div><div><h4>Pull ข้อมูลลง</h4><p>กด Pull เพื่อดึงข้อมูลจาก Cloud มาใช้</p></div></div>
+                        </div>
+                        <div class="sync-note">
+                            <i class="ri-shield-check-line"></i>
+                            <span>ข้อมูลถูกป้องกันด้วย PIN + SHA-256 Hash — ไม่มีใครเข้าถึงได้โดยไม่มีรหัส</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sync Log -->
+            <div class="card" style="margin-top:16px">
+                <div class="card-header"><span class="card-title"><i class="ri-history-line"></i> Sync Log</span><button class="btn btn-sm btn-secondary" onclick="clearSyncLog()"><i class="ri-delete-bin-line"></i> ล้าง</button></div>
+                <div class="card-body"><div id="sync-log" style="max-height:200px;overflow-y:auto;font-size:12px;font-family:'JetBrains Mono',monospace"></div></div>
+            </div>
+        </div>
+
     </main>
 </div>
 
