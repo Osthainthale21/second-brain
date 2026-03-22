@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="midnight">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Second Brain - ระบบสมองที่สอง</title>
+    <meta name="description" content="Second Brain - ระบบจัดการชีวิตและงานอัจฉริยะ">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0a0a0f">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- PIN LOCK -->
+<div class="pin-lock" id="pin-lock">
+    <div class="pin-lock-inner">
+        <div class="pin-icon"><i class="ri-brain-line"></i></div>
+        <h2>Second Brain</h2>
+        <p>ใส่ PIN เพื่อเข้าใช้งาน</p>
+        <div class="pin-dots" id="pin-dots"><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div></div>
+        <div class="pin-pad">
+            <button class="pin-key" onclick="pinInput(1)">1</button><button class="pin-key" onclick="pinInput(2)">2</button><button class="pin-key" onclick="pinInput(3)">3</button>
+            <button class="pin-key" onclick="pinInput(4)">4</button><button class="pin-key" onclick="pinInput(5)">5</button><button class="pin-key" onclick="pinInput(6)">6</button>
+            <button class="pin-key" onclick="pinInput(7)">7</button><button class="pin-key" onclick="pinInput(8)">8</button><button class="pin-key" onclick="pinInput(9)">9</button>
+            <button class="pin-key" onclick="pinClear()"><i class="ri-delete-back-2-line"></i></button><button class="pin-key" onclick="pinInput(0)">0</button><button class="pin-key pin-skip" onclick="pinSkip()"><i class="ri-arrow-right-line"></i></button>
+        </div>
+    </div>
+</div>
+
+<!-- FOCUS MODE -->
+<div class="focus-overlay" id="focus-overlay">
+    <div class="focus-progress-ring"><svg width="200" height="200"><circle cx="100" cy="100" r="90" fill="none" stroke="var(--border)" stroke-width="6"/><circle id="focus-ring" cx="100" cy="100" r="90" fill="none" stroke="url(#focusGrad)" stroke-width="6" stroke-dasharray="565.48" stroke-dashoffset="0" stroke-linecap="round"/><defs><linearGradient id="focusGrad"><stop offset="0%" stop-color="var(--accent-blue)"/><stop offset="100%" stop-color="var(--accent-purple)"/></linearGradient></defs></svg></div>
+    <div class="focus-timer" id="focus-timer">25:00</div>
+    <div class="focus-task-name" id="focus-task-name">Deep Focus</div>
+    <div class="focus-controls">
+        <button class="btn btn-primary" id="focus-start-btn" onclick="toggleFocusTimer()"><i class="ri-play-line"></i> เริ่ม</button>
+        <button class="btn btn-secondary" onclick="resetFocusTimer()"><i class="ri-refresh-line"></i> รีเซ็ต</button>
+        <button class="btn btn-danger" onclick="closeFocusMode()"><i class="ri-close-line"></i> ปิด</button>
+    </div>
+    <div class="sound-picker">
+        <button class="sound-btn active" data-sound="none" onclick="setSound('none')">🔇 เงียบ</button>
+        <button class="sound-btn" data-sound="rain" onclick="setSound('rain')">🌧️ ฝน</button>
+        <button class="sound-btn" data-sound="forest" onclick="setSound('forest')">🌲 ป่า</button>
+        <button class="sound-btn" data-sound="lofi" onclick="setSound('lofi')">🎵 Lo-fi</button>
+        <button class="sound-btn" data-sound="fire" onclick="setSound('fire')">🔥 กองไฟ</button>
+    </div>
+</div>
+
+<!-- COMMAND PALETTE -->
+<div class="cmd-overlay" id="cmd-overlay" onclick="closeCmdPalette()">
+    <div class="cmd-palette" onclick="event.stopPropagation()">
+        <div class="cmd-input-wrap"><i class="ri-search-line"></i><input type="text" class="cmd-input" id="cmd-input" placeholder="พิมพ์คำสั่งหรือค้นหา..." oninput="filterCommands()"><kbd class="kbd">ESC</kbd></div>
+        <div class="cmd-list" id="cmd-list"></div>
+    </div>
+</div>
+
+<!-- SHORTCUTS PANEL -->
+<div class="shortcuts-overlay" id="shortcuts-overlay" onclick="closeShortcuts()">
+    <div class="shortcuts-panel" onclick="event.stopPropagation()">
+        <h3><i class="ri-keyboard-line"></i> Keyboard Shortcuts</h3>
+        <div class="shortcuts-body">
+            <div class="shortcut-group"><h4>Navigation</h4>
+                <div class="shortcut-item"><span>Command Palette</span><kbd>Ctrl+K</kbd></div>
+                <div class="shortcut-item"><span>Quick Capture</span><kbd>Ctrl+N</kbd></div>
+                <div class="shortcut-item"><span>Focus Mode</span><kbd>Ctrl+Shift+F</kbd></div>
+                <div class="shortcut-item"><span>Shortcuts</span><kbd>?</kbd></div>
+            </div>
+            <div class="shortcut-group"><h4>Actions</h4>
+                <div class="shortcut-item"><span>Undo</span><kbd>Ctrl+Z</kbd></div>
+                <div class="shortcut-item"><span>Redo</span><kbd>Ctrl+Y</kbd></div>
+                <div class="shortcut-item"><span>Export Data</span><kbd>Ctrl+Shift+E</kbd></div>
+                <div class="shortcut-item"><span>Toggle Theme</span><kbd>Ctrl+Shift+D</kbd></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DAILY DIGEST -->
+<div class="digest-overlay" id="digest-overlay" onclick="closeDigest()">
+    <div class="digest-panel" onclick="event.stopPropagation()">
+        <div class="digest-header"><h3>☀️ Daily Digest</h3><button class="modal-close" onclick="closeDigest()"><i class="ri-close-line"></i></button></div>
+        <div class="digest-body" id="digest-body"></div>
+    </div>
+</div>
+
+<div class="app" id="app" style="display:none">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo"><div class="logo-icon"><i class="ri-brain-line"></i></div><div><h1>Second Brain</h1><small>ระบบสมองที่สอง</small></div></div>
+            <div class="xp-bar-sidebar"><div class="xp-info"><span id="xp-level-text">Lv.1 Beginner</span><span id="xp-text">0/100 XP</span></div><div class="xp-track"><div class="xp-fill" id="xp-bar" style="width:0%"></div></div></div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section"><div class="nav-section-title">หลัก</div>
+                <div class="nav-item active" data-page="dashboard"><i class="ri-dashboard-3-line"></i> แดชบอร์ด</div>
+                <div class="nav-item" data-page="inbox"><i class="ri-inbox-2-line"></i> Inbox <span class="nav-badge" id="inbox-count">0</span></div>
+                <div class="nav-item" data-page="today"><i class="ri-sun-line"></i> วันนี้</div>
+                <div class="nav-item" data-page="kanban"><i class="ri-layout-column-line"></i> Kanban</div>
+                <div class="nav-item" data-page="eisenhower"><i class="ri-grid-line"></i> Eisenhower</div>
+            </div>
+            <div class="nav-section"><div class="nav-section-title">PARA</div>
+                <div class="nav-item" data-page="projects"><i class="ri-rocket-2-line"></i> Projects</div>
+                <div class="nav-item" data-page="areas"><i class="ri-compass-3-line"></i> Areas</div>
+                <div class="nav-item" data-page="resources"><i class="ri-book-2-line"></i> Resources</div>
+                <div class="nav-item" data-page="archive"><i class="ri-archive-2-line"></i> Archive</div>
+            </div>
+            <div class="nav-section"><div class="nav-section-title">สมอง</div>
+                <div class="nav-item" data-page="notes"><i class="ri-sticky-note-2-line"></i> Knowledge Base</div>
+                <div class="nav-item" data-page="graph"><i class="ri-mind-map"></i> Knowledge Graph</div>
+                <div class="nav-item" data-page="spaced"><i class="ri-repeat-2-line"></i> Spaced Rep</div>
+                <div class="nav-item" data-page="reading"><i class="ri-book-open-line"></i> Reading List</div>
+            </div>
+            <div class="nav-section"><div class="nav-section-title">ชีวิต</div>
+                <div class="nav-item" data-page="journal"><i class="ri-quill-pen-line"></i> Journal</div>
+                <div class="nav-item" data-page="habits"><i class="ri-heart-pulse-line"></i> Habits</div>
+                <div class="nav-item" data-page="ritual"><i class="ri-moon-line"></i> Ritual</div>
+                <div class="nav-item" data-page="health"><i class="ri-heart-3-line"></i> Health</div>
+                <div class="nav-item" data-page="finance"><i class="ri-money-dollar-circle-line"></i> Finance</div>
+            </div>
+            <div class="nav-section"><div class="nav-section-title">วิเคราะห์</div>
+                <div class="nav-item" data-page="analytics"><i class="ri-bar-chart-2-line"></i> Analytics</div>
+                <div class="nav-item" data-page="heatmap"><i class="ri-calendar-2-line"></i> Heatmap</div>
+                <div class="nav-item" data-page="timetracker"><i class="ri-timer-2-line"></i> Time Tracker</div>
+                <div class="nav-item" data-page="okr"><i class="ri-flag-2-line"></i> OKR</div>
+                <div class="nav-item" data-page="lifewheel"><i class="ri-pie-chart-line"></i> Life Wheel</div>
+                <div class="nav-item" data-page="review"><i class="ri-eye-line"></i> Weekly Review</div>
+            </div>
+            <div class="nav-section"><div class="nav-section-title">อื่นๆ</div>
+                <div class="nav-item" data-page="vision"><i class="ri-image-line"></i> Vision Board</div>
+                <div class="nav-item" data-page="templates"><i class="ri-file-copy-2-line"></i> Templates</div>
+                <div class="nav-item" data-page="achievements"><i class="ri-trophy-line"></i> Achievements</div>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <button class="quick-capture-btn" onclick="openModal('capture-modal')"><i class="ri-flashlight-line"></i> Quick Capture <kbd class="kbd-sm">Ctrl+N</kbd></button>
+        </div>
+    </aside>
+
+    <!-- MAIN -->
+    <main class="main-content">
+        <header class="topbar">
+            <div class="topbar-left"><div class="topbar-greeting"><h2 id="greeting-text"></h2><p id="date-text"></p></div></div>
+            <div class="topbar-right">
+                <div class="topbar-quote" id="topbar-quote"></div>
+                <div class="search-box" onclick="openCmdPalette()"><i class="ri-search-line"></i><span style="color:var(--text-muted);font-size:13px">ค้นหา...</span><kbd class="kbd-sm">Ctrl+K</kbd></div>
+                <button class="topbar-btn" onclick="showDigest()" title="Daily Digest"><i class="ri-notification-3-line"></i></button>
+                <button class="topbar-btn" onclick="startFocusMode()" title="Focus Mode"><i class="ri-focus-3-line"></i></button>
+                <button class="topbar-btn" onclick="cycleTheme()" title="เปลี่ยนธีม"><i class="ri-palette-line"></i></button>
+                <button class="topbar-btn" onclick="toggleLang()" title="TH/EN" id="lang-btn">TH</button>
+            </div>
+        </header>
+
+        <!-- DASHBOARD -->
+        <div class="page active" id="page-dashboard">
+            <div class="dashboard-stats">
+                <div class="stat-card"><div class="stat-card-header"><div class="stat-icon blue"><i class="ri-task-line"></i></div></div><div class="stat-value" id="s-tasks">0</div><div class="stat-label">งานที่ต้องทำ</div></div>
+                <div class="stat-card"><div class="stat-card-header"><div class="stat-icon green"><i class="ri-check-double-line"></i></div></div><div class="stat-value" id="s-done">0</div><div class="stat-label">เสร็จวันนี้</div></div>
+                <div class="stat-card"><div class="stat-card-header"><div class="stat-icon purple"><i class="ri-rocket-2-line"></i></div></div><div class="stat-value" id="s-proj">0</div><div class="stat-label">โปรเจกต์</div></div>
+                <div class="stat-card"><div class="stat-card-header"><div class="stat-icon orange"><i class="ri-fire-line"></i></div></div><div class="stat-value" id="s-streak">0</div><div class="stat-label">วัน Streak</div></div>
+                <div class="stat-card"><div class="stat-card-header"><div class="stat-icon cyan"><i class="ri-trophy-line"></i></div></div><div class="stat-value" id="s-level">1</div><div class="stat-label" id="s-level-name">Beginner</div></div>
+            </div>
+            <div class="grid-2">
+                <div class="card"><div class="card-header"><span class="card-title"><i class="ri-robot-2-line"></i> AI Daily Plan</span><button class="btn btn-sm btn-primary" onclick="generateAIPlan()"><i class="ri-sparkling-line"></i> สร้างแผน</button></div><div class="card-body" id="ai-plan"><p class="text-muted">กดปุ่ม "สร้างแผน" เพื่อให้ AI จัดแผนวันนี้</p></div></div>
+                <div class="card"><div class="card-header"><span class="card-title"><i class="ri-calendar-line"></i> ตารางวันนี้</span></div><div class="card-body" id="dash-timeline"><p class="text-muted">เพิ่มงานในหน้า "วันนี้" เพื่อเริ่มต้น</p></div></div>
+            </div>
+            <div class="grid-3">
+                <div class="card"><div class="card-header"><span class="card-title"><i class="ri-inbox-2-line"></i> Inbox</span><button class="card-action" onclick="nav('inbox')">ดูทั้งหมด</button></div><div class="card-body" id="dash-inbox"></div></div>
+                <div class="card"><div class="card-header"><span class="card-title"><i class="ri-rocket-2-line"></i> โปรเจกต์</span><button class="card-action" onclick="nav('projects')">ดูทั้งหมด</button></div><div class="card-body" id="dash-projects"></div></div>
+                <div class="card"><div class="card-header"><span class="card-title"><i class="ri-heart-pulse-line"></i> นิสัยวันนี้</span><button class="card-action" onclick="nav('habits')">ดูทั้งหมด</button></div><div class="card-body" id="dash-habits"></div></div>
+            </div>
+        </div>
+
+        <!-- INBOX -->
+        <div class="page" id="page-inbox"><h2>Inbox</h2><p class="page-desc">จับทุกอย่าง — จัดระเบียบทีหลัง</p><div class="input-row"><input type="text" class="form-input" id="inbox-input" placeholder="จดอะไรก็ได้..." onkeydown="if(event.key==='Enter')addInbox()"><button class="btn btn-primary" onclick="addInbox()"><i class="ri-add-line"></i></button></div><div id="inbox-list"></div></div>
+
+        <!-- TODAY -->
+        <div class="page" id="page-today"><h2>วันนี้</h2><p class="page-desc">โฟกัส 3-5 งานหลัก</p><div class="input-row"><input type="text" class="form-input" id="task-input" placeholder="เพิ่มงานใหม่..." onkeydown="if(event.key==='Enter')addTask()"><select class="form-select" style="width:120px" id="task-priority"><option value="high">สำคัญมาก</option><option value="medium" selected>สำคัญ</option><option value="low">ทั่วไป</option></select><button class="btn btn-primary" onclick="addTask()"><i class="ri-add-line"></i></button></div><div id="today-tasks"></div></div>
+
+        <!-- KANBAN -->
+        <div class="page" id="page-kanban"><h2>Kanban Board</h2><p class="page-desc">ลากวางงานระหว่างสถานะ</p><div class="kanban-board"><div class="kanban-col"><div class="kanban-col-header"><i class="ri-list-check" style="color:var(--accent-blue)"></i> To Do <span class="count" id="kb-todo-count">0</span></div><div class="kanban-col-body" id="kb-todo" ondragover="event.preventDefault()" ondrop="kanbanDrop(event,'todo')"></div></div><div class="kanban-col"><div class="kanban-col-header"><i class="ri-loader-4-line" style="color:var(--accent-orange)"></i> In Progress <span class="count" id="kb-doing-count">0</span></div><div class="kanban-col-body" id="kb-doing" ondragover="event.preventDefault()" ondrop="kanbanDrop(event,'doing')"></div></div><div class="kanban-col"><div class="kanban-col-header"><i class="ri-check-double-line" style="color:var(--accent-green)"></i> Done <span class="count" id="kb-done-count">0</span></div><div class="kanban-col-body" id="kb-done" ondragover="event.preventDefault()" ondrop="kanbanDrop(event,'done')"></div></div></div></div>
+
+        <!-- EISENHOWER -->
+        <div class="page" id="page-eisenhower"><h2>Eisenhower Matrix</h2><p class="page-desc">จัดลำดับความสำคัญ</p><div class="eisenhower-grid"><div class="eisenhower-quad eq-do"><div class="eisenhower-quad-header"><i class="ri-alarm-warning-line"></i> ทำทันที</div><div class="eisenhower-quad-body" id="eq-do" ondragover="event.preventDefault()" ondrop="eqDrop(event,'do')"></div></div><div class="eisenhower-quad eq-schedule"><div class="eisenhower-quad-header"><i class="ri-calendar-schedule-line"></i> วางแผน</div><div class="eisenhower-quad-body" id="eq-schedule" ondragover="event.preventDefault()" ondrop="eqDrop(event,'schedule')"></div></div><div class="eisenhower-quad eq-delegate"><div class="eisenhower-quad-header"><i class="ri-user-shared-line"></i> มอบหมาย</div><div class="eisenhower-quad-body" id="eq-delegate" ondragover="event.preventDefault()" ondrop="eqDrop(event,'delegate')"></div></div><div class="eisenhower-quad eq-delete"><div class="eisenhower-quad-header"><i class="ri-delete-bin-line"></i> ตัดทิ้ง</div><div class="eisenhower-quad-body" id="eq-delete" ondragover="event.preventDefault()" ondrop="eqDrop(event,'delete')"></div></div></div></div>
+
+        <!-- PROJECTS -->
+        <div class="page" id="page-projects"><div class="page-header-row"><div><h2>Projects</h2><p class="page-desc">งานที่มีเป้าหมายและเดดไลน์</p></div><button class="btn btn-primary" onclick="openModal('project-modal')"><i class="ri-add-line"></i> โปรเจกต์ใหม่</button></div><div class="grid-4" id="projects-list"></div></div>
+
+        <!-- AREAS -->
+        <div class="page" id="page-areas"><div class="page-header-row"><div><h2>Areas</h2><p class="page-desc">ความรับผิดชอบต่อเนื่อง</p></div><button class="btn btn-primary" onclick="openModal('area-modal')"><i class="ri-add-line"></i> เพิ่ม Area</button></div><div class="grid-4" id="areas-list"></div></div>
+
+        <!-- RESOURCES -->
+        <div class="page" id="page-resources"><div class="page-header-row"><div><h2>Resources</h2><p class="page-desc">ข้อมูลอ้างอิง</p></div><button class="btn btn-primary" onclick="openNoteModal('resource')"><i class="ri-add-line"></i> เพิ่ม</button></div><div class="grid-4" id="resources-list"></div></div>
+
+        <!-- ARCHIVE -->
+        <div class="page" id="page-archive"><h2>Archive</h2><p class="page-desc">สิ่งที่เสร็จแล้ว</p><div id="archive-list"></div></div>
+
+        <!-- KNOWLEDGE BASE -->
+        <div class="page" id="page-notes"><div class="page-header-row"><div><h2>Knowledge Base</h2><p class="page-desc">1 ไอเดีย = 1 โน้ต (Markdown)</p></div><button class="btn btn-primary" onclick="openNoteModal('note')"><i class="ri-add-line"></i> โน้ตใหม่</button></div><div class="grid-4" id="notes-list"></div></div>
+
+        <!-- KNOWLEDGE GRAPH -->
+        <div class="page" id="page-graph"><h2>Knowledge Graph</h2><p class="page-desc">แผนที่ความรู้</p><canvas id="knowledge-graph"></canvas></div>
+
+        <!-- SPACED REP -->
+        <div class="page" id="page-spaced"><div class="page-header-row"><div><h2>Spaced Repetition</h2><p class="page-desc">ทบทวนความรู้ — จำได้ถาวร</p></div><button class="btn btn-primary" onclick="openModal('sr-modal')"><i class="ri-add-line"></i> เพิ่มการ์ด</button></div><div id="sr-container"></div></div>
+
+        <!-- READING LIST -->
+        <div class="page" id="page-reading"><div class="page-header-row"><div><h2>Reading List</h2><p class="page-desc">หนังสือ/บทความ</p></div><button class="btn btn-primary" onclick="openModal('reading-modal')"><i class="ri-add-line"></i> เพิ่ม</button></div><div class="reading-tabs"><button class="tab-btn active" onclick="filterReading('all',this)">ทั้งหมด</button><button class="tab-btn" onclick="filterReading('want',this)">อยากอ่าน</button><button class="tab-btn" onclick="filterReading('reading',this)">กำลังอ่าน</button><button class="tab-btn" onclick="filterReading('done',this)">อ่านจบ</button></div><div class="grid-4" id="reading-list"></div></div>
+
+        <!-- JOURNAL -->
+        <div class="page" id="page-journal"><h2>Daily Journal</h2><p class="page-desc">บันทึกประจำวัน + Mood</p><div class="card" style="margin-bottom:20px"><div class="card-header"><span class="card-title"><i class="ri-emotion-happy-line"></i> วันนี้รู้สึกอย่างไร?</span></div><div class="card-body"><div class="mood-picker" id="mood-picker"><div class="mood-btn" onclick="selectMood('amazing')">🤩</div><div class="mood-btn" onclick="selectMood('happy')">😊</div><div class="mood-btn" onclick="selectMood('okay')">😐</div><div class="mood-btn" onclick="selectMood('sad')">😔</div><div class="mood-btn" onclick="selectMood('stressed')">😩</div></div><textarea class="form-textarea" id="journal-text" placeholder="เขียนบันทึกวันนี้..."></textarea><button class="btn btn-primary" style="margin-top:10px" onclick="saveJournal()"><i class="ri-save-line"></i> บันทึก</button></div></div><div id="journal-list"></div></div>
+
+        <!-- HABITS -->
+        <div class="page" id="page-habits"><div class="page-header-row"><div><h2>Habit Tracker</h2><p class="page-desc">สร้างนิสัยดีๆ</p></div><button class="btn btn-primary" onclick="openModal('habit-modal')"><i class="ri-add-line"></i> เพิ่มนิสัย</button></div><div id="habits-list"></div></div>
+
+        <!-- RITUAL -->
+        <div class="page" id="page-ritual"><h2>Morning / Evening Ritual</h2><p class="page-desc">กิจวัตรเช้า-เย็น</p><div class="grid-2"><div class="card"><div class="card-header"><span class="card-title">☀️ Morning</span><button class="btn btn-sm btn-secondary" onclick="resetRitual('morning')">รีเซ็ต</button></div><div class="card-body" id="morning-ritual"></div></div><div class="card"><div class="card-header"><span class="card-title">🌙 Evening</span><button class="btn btn-sm btn-secondary" onclick="resetRitual('evening')">รีเซ็ต</button></div><div class="card-body" id="evening-ritual"></div></div></div></div>
+
+        <!-- HEALTH -->
+        <div class="page" id="page-health"><h2>Health Dashboard</h2><p class="page-desc">ติดตามสุขภาพ</p><div class="grid-4 health-inputs"><div class="card"><div class="card-body health-input-card"><div class="health-icon">⚖️</div><label>น้ำหนัก (kg)</label><input type="number" class="form-input" id="health-weight" step="0.1"><button class="btn btn-sm btn-primary" onclick="logHealth('weight')">บันทึก</button></div></div><div class="card"><div class="card-body health-input-card"><div class="health-icon">😴</div><label>ชั่วโมงนอน</label><input type="number" class="form-input" id="health-sleep" step="0.5"><button class="btn btn-sm btn-primary" onclick="logHealth('sleep')">บันทึก</button></div></div><div class="card"><div class="card-body health-input-card"><div class="health-icon">💧</div><label>แก้วน้ำ</label><div class="water-cups" id="water-cups"></div></div></div><div class="card"><div class="card-body health-input-card"><div class="health-icon">👟</div><label>ก้าวเดิน</label><input type="number" class="form-input" id="health-steps"><button class="btn btn-sm btn-primary" onclick="logHealth('steps')">บันทึก</button></div></div></div><div class="grid-2" style="margin-top:16px"><div class="card"><div class="card-header"><span class="card-title">น้ำหนัก 7 วัน</span></div><div class="card-body"><canvas id="weight-chart" height="200"></canvas></div></div><div class="card"><div class="card-header"><span class="card-title">การนอน 7 วัน</span></div><div class="card-body"><canvas id="sleep-chart" height="200"></canvas></div></div></div></div>
+
+        <!-- FINANCE -->
+        <div class="page" id="page-finance"><div class="page-header-row"><div><h2>Finance Tracker</h2><p class="page-desc">จัดการรายรับ-รายจ่าย</p></div><button class="btn btn-primary" onclick="openModal('finance-modal')"><i class="ri-add-line"></i> เพิ่มรายการ</button></div><div class="grid-3" style="margin-bottom:16px"><div class="stat-card"><div class="stat-icon green"><i class="ri-arrow-down-line"></i></div><div class="stat-value" id="fin-income" style="color:var(--accent-green)">0</div><div class="stat-label">รายรับเดือนนี้</div></div><div class="stat-card"><div class="stat-icon orange"><i class="ri-arrow-up-line"></i></div><div class="stat-value" id="fin-expense" style="color:var(--accent-orange)">0</div><div class="stat-label">รายจ่ายเดือนนี้</div></div><div class="stat-card"><div class="stat-icon blue"><i class="ri-wallet-3-line"></i></div><div class="stat-value" id="fin-balance">0</div><div class="stat-label">คงเหลือ</div></div></div><div class="grid-2"><div class="card"><div class="card-header"><span class="card-title">กราฟรายเดือน</span></div><div class="card-body"><canvas id="finance-chart" height="220"></canvas></div></div><div class="card"><div class="card-header"><span class="card-title">รายการล่าสุด</span></div><div class="card-body" id="finance-list" style="max-height:280px;overflow-y:auto"></div></div></div></div>
+
+        <!-- ANALYTICS -->
+        <div class="page" id="page-analytics"><h2>Life Dashboard Analytics</h2><p class="page-desc">วิเคราะห์ชีวิตรอบด้าน</p><div class="grid-3" style="margin-bottom:16px"><div class="card"><div class="card-header"><span class="card-title">Productivity Score</span></div><div class="card-body" style="text-align:center"><div class="score-ring"><svg width="120" height="120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--border)" stroke-width="8"/><circle id="prod-ring" cx="60" cy="60" r="52" fill="none" stroke="var(--accent-blue)" stroke-width="8" stroke-dasharray="326.73" stroke-dashoffset="326.73" stroke-linecap="round" style="transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s"/></svg><div class="score-ring-text"><div class="score-ring-value" id="prod-score">0</div><div class="score-ring-label">คะแนน</div></div></div></div></div><div class="card"><div class="card-header"><span class="card-title">Habit Completion</span></div><div class="card-body" style="text-align:center"><div class="score-ring"><svg width="120" height="120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--border)" stroke-width="8"/><circle id="habit-ring" cx="60" cy="60" r="52" fill="none" stroke="var(--accent-green)" stroke-width="8" stroke-dasharray="326.73" stroke-dashoffset="326.73" stroke-linecap="round" style="transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s"/></svg><div class="score-ring-text"><div class="score-ring-value" id="habit-score">0%</div><div class="score-ring-label">สำเร็จ</div></div></div></div></div><div class="card"><div class="card-header"><span class="card-title">Mood Trend</span></div><div class="card-body"><canvas id="mood-chart" height="140"></canvas></div></div></div><div class="grid-2"><div class="card"><div class="card-header"><span class="card-title">งานสำเร็จ 7 วัน</span></div><div class="card-body"><canvas id="tasks-chart" height="200"></canvas></div></div><div class="card"><div class="card-header"><span class="card-title">Focus Hours</span></div><div class="card-body"><canvas id="focus-chart" height="200"></canvas></div></div></div></div>
+
+        <!-- HEATMAP -->
+        <div class="page" id="page-heatmap"><h2>Heatmap Calendar</h2><p class="page-desc">ภาพรวมกิจกรรมรายปี</p><div class="card"><div class="card-body"><div class="heatmap-container" id="heatmap-container"></div><div class="heatmap-legend"><span>น้อย</span><div class="heatmap-cell" style="background:var(--bg-input)"></div><div class="heatmap-cell" style="background:#0e4429"></div><div class="heatmap-cell" style="background:#006d32"></div><div class="heatmap-cell" style="background:#26a641"></div><div class="heatmap-cell" style="background:#39d353"></div><span>มาก</span></div></div></div></div>
+
+        <!-- TIME TRACKER -->
+        <div class="page" id="page-timetracker"><h2>Time Tracker</h2><p class="page-desc">จับเวลา — รู้ว่าเวลาหายไปไหน</p><div class="card" style="margin-bottom:16px"><div class="card-body"><div class="tt-active"><input type="text" class="form-input" id="tt-task-name" placeholder="กำลังทำอะไรอยู่?"><div class="tt-timer" id="tt-timer">00:00:00</div><button class="btn btn-primary" id="tt-btn" onclick="toggleTimeTracker()"><i class="ri-play-line"></i> เริ่มจับเวลา</button></div></div></div><div class="card"><div class="card-header"><span class="card-title">ประวัติวันนี้</span></div><div class="card-body" id="tt-history"></div></div></div>
+
+        <!-- OKR -->
+        <div class="page" id="page-okr"><div class="page-header-row"><div><h2>OKR / Goal Tracker</h2><p class="page-desc">เป้าหมายรายไตรมาส</p></div><button class="btn btn-primary" onclick="openModal('okr-modal')"><i class="ri-add-line"></i> เพิ่ม Objective</button></div><div id="okr-list"></div></div>
+
+        <!-- LIFE WHEEL -->
+        <div class="page" id="page-lifewheel"><h2>Life Wheel</h2><p class="page-desc">ให้คะแนน 8 ด้านของชีวิต</p><div class="grid-2"><div class="card"><div class="card-body" style="text-align:center"><canvas id="lifewheel-canvas" width="400" height="400"></canvas></div></div><div class="card"><div class="card-header"><span class="card-title">ให้คะแนน (1-10)</span></div><div class="card-body" id="lifewheel-inputs"></div></div></div></div>
+
+        <!-- WEEKLY REVIEW -->
+        <div class="page" id="page-review"><h2>Weekly Review</h2><p class="page-desc">ทบทวนสัปดาห์</p><div class="card" style="margin-bottom:16px"><div class="card-body"><div class="form-group"><label class="form-label">สิ่งที่ทำได้ดี</label><textarea class="form-textarea" id="review-good"></textarea></div><div class="form-group"><label class="form-label">สิ่งที่ต้องปรับปรุง</label><textarea class="form-textarea" id="review-improve"></textarea></div><div class="form-group"><label class="form-label">เป้าหมายสัปดาห์หน้า</label><textarea class="form-textarea" id="review-next"></textarea></div><button class="btn btn-primary" onclick="saveReview()"><i class="ri-save-line"></i> บันทึก</button></div></div><div id="review-history"></div></div>
+
+        <!-- VISION BOARD -->
+        <div class="page" id="page-vision"><div class="page-header-row"><div><h2>Vision Board</h2><p class="page-desc">แปะเป้าหมาย แรงบันดาลใจ</p></div><button class="btn btn-primary" onclick="openModal('vision-modal')"><i class="ri-add-line"></i> เพิ่ม</button></div><div class="vision-board" id="vision-board"></div></div>
+
+        <!-- TEMPLATES -->
+        <div class="page" id="page-templates"><h2>Templates</h2><p class="page-desc">เทมเพลตสำเร็จรูป</p><div class="grid-4" id="templates-list"></div></div>
+
+        <!-- ACHIEVEMENTS -->
+        <div class="page" id="page-achievements"><h2>Achievements</h2><p class="page-desc">ความสำเร็จและรางวัล</p><div class="achievements-grid" id="achievements-list"></div></div>
+    </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="capture-modal"><div class="modal"><div class="modal-header"><h3><i class="ri-flashlight-line"></i> Quick Capture</h3><button class="modal-close" onclick="closeModal('capture-modal')"><i class="ri-close-line"></i></button></div><div class="modal-body"><textarea class="form-textarea" id="capture-text" placeholder="จดอะไรก็ได้..." rows="4"></textarea></div><div class="modal-footer"><button class="btn btn-primary" onclick="saveCapture()"><i class="ri-save-line"></i> บันทึก</button></div></div></div>
+
+<div class="modal-overlay" id="project-modal"><div class="modal"><div class="modal-header"><h3><i class="ri-rocket-2-line"></i> โปรเจกต์ใหม่</h3><button class="modal-close" onclick="closeModal('project-modal')"><i class="ri-close-line"></i></button></div><div class="modal-body"><div class="form-group"><label class="form-label">Emoji</label><input class="form-input" id="proj-emoji" placeholder="🚀" maxlength="2"></div><div class="form-group"><label class="form-label">ชื่อ</label><input class="form-input" id="proj-name"></div><div class="form-group"><label class="form-label">รายละเอียด</label><textarea class="form-textarea" id="proj-desc"></textarea></div><div class="form-group"><label class="form-label">เดดไลน์</label><input class="form-input" id="proj-deadline" type="date"></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="addProject()"><i class="ri-save-line"></i> สร้าง</button></div></div></div>
+
+<div class="modal-overlay" id="area-modal"><div class="modal"><div class="modal-header"><h3><i class="ri-compass-3-line"></i> เพิ่ม Area</h3><button class="modal-close" onclick="closeModal('area-modal')"><i class="ri-close-line"></i></button></div><div class="modal-body"><div class="form-group"><label class="form-label">Emoji</label><input class="form-input" id="area-emoji" placeholder="💼"></div><div class="form-group"><label class="form-label">ชื่อ</label><input class="form-input" id="area-name"></div><div class="form-group"><label class="form-label">รายละเอียด</label><textarea class="form-textarea" id="area-desc"></textarea></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="addArea()"><i class="ri-save-line"></i> สร้าง</button></div></div></div>
+
+<div class="modal-overlay" id="note-modal"><div class="modal" style="max-width:640px"><div class="modal-header"><h3><i class="ri-sticky-note-2-line"></i> <span id="note-modal-title">โน้ตใหม่</span></h3><button class="modal-close" onclick="closeModal('note-modal')"><i class="ri-close-line"></i></button></div><div class="modal-body"><div class="form-group"><label class="form-label">หัวข้อ</label><input class="form-input" id="note-title"></div><div class="form-group"><label class="form-label">เนื้อหา (Markdown)</label><textarea class="form-textarea" id="note-content" rows="8" placeholder="# หัวข้อ&#10;**ตัวหนา** *ตัวเอียง*&#10;- รายการ"></textarea></div><div class="form-group"><label class="form-label">แท็ก (คั่นด้วยคอมม่า)</label><input class="form-input" id="note-tags" placeholder="tag1, tag2"></div><div class="form-group"><label class="form-label">เชื่อมโยงกับ</label><select class="form-select" id="note-links" multiple style="height:80px"></select></div><input type="hidden" id="note-type" value="note"></div><div class="modal-footer"><button class="btn btn-primary" onclick="saveNote()"><i class="ri-save-line"></i> บันทึก</button></div></div></div>
+
+<div class="modal-overlay" id="habit-modal"><div class="modal"><div class="modal-header"><h3><i class="ri-heart-pulse-line"></i> เพิ่มนิสัย</h3><button class="modal-close" onclick="closeModal('habit-modal')"><i class="ri-close-line"></i></button></div><div class="modal-body"><div class="form-group"><label class="form-label">Emoji</label><input class="form-input" id="habit-emoji" placeholder="💪"></div><div class="form-group"><label class="form-label">ชื่อ</label><input class="form-input" id="habit-name"></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="addHabit()"><i class="ri-save-line"></i> เพิ่ม</button></div></div></div>
+
+<div class="modal-overlay" id="sr-modal"><div class="modal"><div class="modal-header"><h3><i class="ri-repeat-2-line"></i> เพิ่มการ์ดทบทวน</h3><button class="modal-close" onclick="closeModal('sr-modal')"><i class="ri-close-line"></i></button></div><div class="modal-body"><div class="form-group"><label class="form-label">คำถาม</label><input class="form-input" id="sr-front"></div><div class="form-group"><label class="form-label">คำตอบ</label><textarea class="form-textarea" id="sr-back"></textarea></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="addSRCard()"><i class="ri-save-line"></i> เพิ่ม</button></div></div></div>
+
+<div class="modal-overlay" id="reading-modal"><div class="modal"><div class="modal-header"><h3><i class="ri-book-open-line"></i> เพิ่มหนังสือ</h3><button class="modal-close" onclick="closeModal('reading-modal')"><i class="ri-close-line"></i></button></div><div class="modal-body"><div class="form-group"><label class="form-label">ชื่อ</label><input class="form-input" id="read-title"></div><div class="form-group"><label class="form-label">ผู้เขียน</label><input class="form-input" id="read-author"></div><div class="form-group"><label class="form-label">สถานะ</label><select class="form-select" id="read-status"><option value="want">อยากอ่าน</option><option value="reading">กำลังอ่าน</option><option value="done">อ่านจบ</option></select></div><div class="form-group"><label class="form-label">สรุป</label><textarea class="form-textarea" id="read-notes"></textarea></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="addBook()"><i class="ri-save-line"></i> เพิ่ม</button></div></div></div>
+
+<div class="modal-overlay" id="finance-modal"><div class="modal"><div class="modal-header"><h3><i class="ri-money-dollar-circle-line"></i> เพิ่มรายการ</h3><button class="modal-close" onclick="closeModal('finance-modal')"><i class="ri-close-line"></i></button></div><div class="modal-body"><div class="form-group"><label class="form-label">ประเภท</label><select class="form-select" id="fin-type"><option value="income">รายรับ</option><option value="expense">รายจ่าย</option></select></div><div class="form-group"><label class="form-label">รายละเอียด</label><input class="form-input" id="fin-desc"></div><div class="form-group"><label class="form-label">จำนวน (บาท)</label><input class="form-input" id="fin-amount" type="number"></div><div class="form-group"><label class="form-label">หมวดหมู่</label><select class="form-select" id="fin-cat"><option value="food">อาหาร</option><option value="transport">เดินทาง</option><option value="shopping">ช้อปปิ้ง</option><option value="bills">ค่าใช้จ่าย</option><option value="salary">เงินเดือน</option><option value="freelance">ฟรีแลนซ์</option><option value="other">อื่นๆ</option></select></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="addFinance()"><i class="ri-save-line"></i> เพิ่ม</button></div></div></div>
+
+<div class="modal-overlay" id="okr-modal"><div class="modal"><div class="modal-header"><h3><i class="ri-flag-2-line"></i> เพิ่ม Objective</h3><button class="modal-close" onclick="closeModal('okr-modal')"><i class="ri-close-line"></i></button></div><div class="modal-body"><div class="form-group"><label class="form-label">Objective</label><input class="form-input" id="okr-obj"></div><div class="form-group"><label class="form-label">Key Results (บรรทัดละ 1)</label><textarea class="form-textarea" id="okr-krs" placeholder="KR1: ...&#10;KR2: ..."></textarea></div><div class="form-group"><label class="form-label">ไตรมาส</label><select class="form-select" id="okr-quarter"><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="addOKR()"><i class="ri-save-line"></i> สร้าง</button></div></div></div>
+
+<div class="modal-overlay" id="vision-modal"><div class="modal"><div class="modal-header"><h3><i class="ri-image-line"></i> Vision Card</h3><button class="modal-close" onclick="closeModal('vision-modal')"><i class="ri-close-line"></i></button></div><div class="modal-body"><div class="form-group"><label class="form-label">Emoji</label><input class="form-input" id="vis-emoji" placeholder="🎯"></div><div class="form-group"><label class="form-label">เป้าหมาย</label><input class="form-input" id="vis-title"></div><div class="form-group"><label class="form-label">รายละเอียด</label><textarea class="form-textarea" id="vis-desc"></textarea></div><div class="form-group"><label class="form-label">สี</label><select class="form-select" id="vis-color"><option value="blue">น้ำเงิน</option><option value="purple">ม่วง</option><option value="green">เขียว</option><option value="orange">ส้ม</option><option value="pink">ชมพู</option><option value="cyan">ฟ้า</option></select></div></div><div class="modal-footer"><button class="btn btn-primary" onclick="addVision()"><i class="ri-save-line"></i> เพิ่ม</button></div></div></div>
+
+<!-- POPUPS -->
+<div class="xp-popup" id="xp-popup"><i class="ri-star-fill"></i> +<span id="xp-popup-val">10</span> XP</div>
+<div class="reminder-popup" id="reminder-popup"><i class="ri-notification-3-line"></i> <span id="reminder-text"></span></div>
+<div class="undo-bar" id="undo-bar"><span id="undo-text"></span><button class="btn btn-sm btn-primary" onclick="undoAction()">Undo</button></div>
+
+<script src="app.js"></script>
+</body>
+</html>
