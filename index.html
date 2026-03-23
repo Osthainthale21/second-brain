@@ -132,6 +132,7 @@
                 <div class="nav-item" data-page="templates"><i class="ri-file-copy-2-line"></i> Templates</div>
                 <div class="nav-item" data-page="achievements"><i class="ri-trophy-line"></i> Achievements</div>
                 <div class="nav-item" data-page="cloudsync"><i class="ri-cloud-line"></i> Cloud Sync</div>
+                <div class="nav-item" data-page="trash"><i class="ri-delete-bin-line"></i> ถังขยะ <span class="nav-badge" id="trash-nav-count">0</span></div>
             </div>
         </nav>
         <div class="sidebar-footer">
@@ -318,7 +319,12 @@
                             <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
                                 <button class="btn btn-primary" onclick="syncPush()"><i class="ri-upload-cloud-2-line"></i> Push ขึ้น Cloud</button>
                                 <button class="btn btn-success" onclick="syncPull()"><i class="ri-download-cloud-2-line"></i> Pull จาก Cloud</button>
+                                <button id="auto-sync-toggle" class="btn btn-sm btn-success" onclick="toggleAutoSync()"><i class="ri-check-line"></i> Auto-sync: ON</button>
                                 <button class="btn btn-danger btn-sm" onclick="disconnectSync()"><i class="ri-link-unlink"></i> ตัดการเชื่อมต่อ</button>
+                            </div>
+                            <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+                                <button id="notif-toggle" class="btn btn-sm btn-secondary" onclick="requestNotificationPermission()"><i class="ri-notification-off-line"></i> แจ้งเตือน: OFF</button>
+                                <button class="btn btn-sm btn-purple" onclick="generateWeeklyPDF()"><i class="ri-file-pdf-line"></i> Weekly PDF Report</button>
                             </div>
                         </div>
                     </div>
@@ -349,7 +355,38 @@
             </div>
         </div>
 
+        <!-- TRASH / RECYCLE BIN -->
+        <div class="page" id="page-trash">
+            <h2><i class="ri-delete-bin-line" style="color:var(--accent-red)"></i> ถังขยะ</h2>
+            <p class="page-desc">รายการที่ลบแล้ว — กู้คืนได้ภายใน 30 วัน <span id="trash-count" class="nav-badge">0</span></p>
+            <div style="margin:16px 0"><button class="btn btn-danger btn-sm" onclick="emptyTrash()"><i class="ri-delete-bin-line"></i> ล้างถังขยะทั้งหมด</button></div>
+            <div id="trash-list"></div>
+        </div>
+
     </main>
+</div>
+
+<!-- CONFLICT RESOLUTION DIALOG -->
+<div class="modal-overlay" id="conflict-overlay">
+    <div class="modal" style="max-width:560px">
+        <div class="modal-header">
+            <h3><i class="ri-error-warning-line" style="color:var(--accent-orange)"></i> ข้อมูลไม่ตรงกัน!</h3>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom:16px;color:var(--text-secondary)">ข้อมูลในเครื่องนี้แตกต่างจากข้อมูลบน Cloud — เลือกว่าจะทำอย่างไร:</p>
+            <div class="grid-2" style="margin-bottom:16px">
+                <div class="conflict-card" id="conflict-local-info"></div>
+                <div class="conflict-card" id="conflict-cloud-info"></div>
+            </div>
+        </div>
+        <div class="modal-footer" style="flex-direction:column;gap:8px">
+            <div style="display:flex;gap:8px;width:100%">
+                <button class="btn btn-primary" style="flex:1" onclick="resolveConflict('local')"><i class="ri-computer-line"></i> ใช้ของเครื่องนี้</button>
+                <button class="btn btn-success" style="flex:1" onclick="resolveConflict('cloud')"><i class="ri-cloud-line"></i> ใช้ของ Cloud</button>
+            </div>
+            <button class="btn btn-purple" style="width:100%" onclick="resolveConflict('merge')"><i class="ri-git-merge-line"></i> รวมข้อมูลทั้งสอง (Smart Merge)</button>
+        </div>
+    </div>
 </div>
 
 <!-- MODALS -->

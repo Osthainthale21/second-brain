@@ -16,12 +16,16 @@ const defaultData = () => ({
     achievements:{},
     pin:'',pinEnabled:false,
     theme:'midnight',lang:'th',
-    undoStack:[]
+    undoStack:[],
+    trash:[],
+    notificationsEnabled:false,
+    autoSyncEnabled:true,
+    lastModified: new Date().toISOString()
 });
 
 let D = loadData();
 function loadData(){ try{ const d = JSON.parse(localStorage.getItem(DB_KEY)); return d ? {...defaultData(),...d} : defaultData(); }catch(e){ return defaultData(); }}
-function save(){ localStorage.setItem(DB_KEY, JSON.stringify(D)); }
+function save(){ D.lastModified = new Date().toISOString(); localStorage.setItem(DB_KEY, JSON.stringify(D)); }
 function id(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 function today(){ return new Date().toISOString().slice(0,10); }
 function fmt(n){ return Number(n).toLocaleString(); }
@@ -70,6 +74,8 @@ function nav(page){
     if(page==='lifewheel') renderLifeWheel();
     if(page==='achievements') renderAchievements();
     if(page==='templates') renderTemplates();
+    if(page==='trash') renderTrash();
+    if(page==='cloudsync') { updateSyncUI(); updateAutoSyncUI(); updateNotifUI(); }
 }
 document.addEventListener('DOMContentLoaded',()=>{
     document.querySelectorAll('.nav-item').forEach(item=>{
@@ -170,7 +176,7 @@ function renderInbox(){
     // Dashboard inbox
     const di = el('dash-inbox'); if(di) di.innerHTML = D.inbox.slice(0,5).map(i=>`<div style="font-size:13px;padding:4px 0;color:var(--text-secondary)">${esc(i.text)}</div>`).join('') || '<p class="text-muted">ว่าง</p>';
 }
-function delInbox(iid){ pushUndo('ลบ Inbox',JSON.stringify(D)); D.inbox=D.inbox.filter(i=>i.id!==iid); save(); renderInbox(); }
+function delInbox(iid){ pushUndo('ลบ Inbox',JSON.stringify(D)); const item=D.inbox.find(i=>i.id===iid); if(item) moveToTrash('inbox',item); D.inbox=D.inbox.filter(i=>i.id!==iid); save(); renderInbox(); renderTrash(); }
 function inboxToTask(iid){
     const item = D.inbox.find(i=>i.id===iid); if(!item) return;
     D.tasks.push({id:id(),name:item.text,priority:'medium',done:false,date:today(),status:'todo',eq:''});
@@ -196,7 +202,7 @@ function toggleTask(tid){
     if(t.done) addXP(10);
     save(); renderTasks(); renderKanban(); renderEisenhower(); updateDashboard();
 }
-function delTask(tid){ pushUndo('ลบงาน',JSON.stringify(D)); D.tasks=D.tasks.filter(t=>t.id!==tid); save(); renderTasks(); renderKanban(); renderEisenhower(); }
+function delTask(tid){ pushUndo('ลบงาน',JSON.stringify(D)); const item=D.tasks.find(t=>t.id===tid); if(item) moveToTrash('tasks',item); D.tasks=D.tasks.filter(t=>t.id!==tid); save(); renderTasks(); renderKanban(); renderEisenhower(); renderTrash(); }
 function renderTasks(){
     const list = el('today-tasks'); if(!list) return;
     const todayTasks = D.tasks.filter(t=>t.date===today());
@@ -932,9 +938,21 @@ function closeCmdPalette(){ el('cmd-overlay').classList.remove('show'); }
 function filterCommands(){
     const q = el('cmd-input').value.toLowerCase();
     const filtered = q ? COMMANDS.filter(c=>c.name.toLowerCase().includes(q)) : COMMANDS;
-    el('cmd-list').innerHTML = filtered.map((c,i)=>`
+    let html = filtered.map((c,i)=>`
         <div class="cmd-item ${i===0?'active':''}" onclick="runCmd(${COMMANDS.indexOf(c)})"><i class="${c.icon}"></i>${c.name}${c.key?`<span class="cmd-item-key">${c.key}</span>`:''}</div>
     `).join('');
+
+    // Full-text search results
+    if (q && q.length >= 2) {
+        const searchResults = fullTextSearch(q);
+        if (searchResults.length > 0) {
+            html += '<div style="padding:6px 14px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;border-top:1px solid var(--border);margin-top:4px">ค้นหาข้อมูล</div>';
+            html += searchResults.slice(0,8).map(r => `
+                <div class="cmd-item" onclick="nav('${r.page}');closeCmdPalette()"><i class="${r.icon}" style="color:var(--accent-${r.color})"></i>${esc(r.title)}<span class="cmd-item-key">${r.type}</span></div>
+            `).join('');
+        }
+    }
+    el('cmd-list').innerHTML = html;
 }
 function runCmd(idx){ COMMANDS[idx].action(); closeCmdPalette(); }
 
@@ -1364,49 +1382,7 @@ async function syncPush() {
 
 async function syncPull() {
     if (!syncState || !syncState.code) { syncToast('ยังไม่ได้เชื่อมต่อ', true); return; }
-
-    const bar = document.getElementById('sync-status-bar');
-    bar.className = 'sync-status-bar syncing';
-    document.getElementById('sync-status-icon').innerHTML = '<i class="ri-loader-4-line"></i>';
-    document.getElementById('sync-status-text').textContent = 'กำลัง Pull...';
-    syncLog('กำลังดึงข้อมูลจาก Cloud...', 'info');
-
-    try {
-        const res = await fetch(SYNC_API + '/pull', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Sync-Code': syncState.code,
-                'X-Sync-Pin': syncState.pin
-            }
-        });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || 'Pull ล้มเหลว');
-
-        if (!result.data) {
-            syncLog('ยังไม่มีข้อมูลบน Cloud — Push ก่อน', 'info');
-            syncToast('ยังไม่มีข้อมูลบน Cloud', true);
-            updateSyncUI();
-            return;
-        }
-
-        // Merge: replace local with cloud data
-        const cloudData = result.data;
-        Object.assign(D, cloudData);
-        save();
-        syncState.lastSync = result.pushedAt;
-        localStorage.setItem('sb_sync', JSON.stringify(syncState));
-
-        // Re-render everything
-        renderAll();
-        syncLog(`Pull สำเร็จ! จากอุปกรณ์: ${result.deviceId || 'unknown'} (${(JSON.stringify(cloudData).length/1024).toFixed(1)} KB)`, 'success');
-        syncToast('Pull จาก Cloud สำเร็จ! ข้อมูลอัปเดตแล้ว');
-        updateSyncUI();
-    } catch(e) {
-        syncLog('Pull ผิดพลาด: ' + e.message, 'error');
-        syncToast('Pull ล้มเหลว: ' + e.message, true);
-        updateSyncUI();
-    }
+    return syncPullWithConflict();
 }
 
 function disconnectSync() {
@@ -1424,21 +1400,521 @@ function copySyncCode() {
     }
 }
 
-// Auto-sync on page load if connected
-function autoSyncCheck() {
-    updateSyncUI();
-    if (syncState && syncState.code && syncState.lastSync) {
-        const last = new Date(syncState.lastSync).getTime();
-        const now = Date.now();
-        // If last sync > 5 min ago, show reminder
-        if (now - last > 5 * 60 * 1000) {
-            syncLog('ข้อมูลอาจไม่ตรงกัน — ลอง Pull หรือ Push', 'info');
-        }
+// ===== FEATURE 1: AUTO SYNC =====
+let autoSyncTimer = null;
+const AUTO_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+function startAutoSync() {
+    if (autoSyncTimer) clearInterval(autoSyncTimer);
+    if (!syncState || !syncState.code) return;
+    autoSyncTimer = setInterval(async () => {
+        if (!syncState || !syncState.code || !D.autoSyncEnabled) return;
+        syncLog('Auto-sync กำลังทำงาน...', 'info');
+        try { await syncPush(); } catch(e) { syncLog('Auto-sync ผิดพลาด: '+e.message, 'error'); }
+    }, AUTO_SYNC_INTERVAL);
+    syncLog(`Auto-sync เปิดทุก ${AUTO_SYNC_INTERVAL/60000} นาที`, 'info');
+}
+
+function toggleAutoSync() {
+    D.autoSyncEnabled = !D.autoSyncEnabled;
+    save();
+    if (D.autoSyncEnabled) { startAutoSync(); syncToast('เปิด Auto-sync แล้ว'); }
+    else { if(autoSyncTimer) clearInterval(autoSyncTimer); syncToast('ปิด Auto-sync แล้ว'); }
+    updateAutoSyncUI();
+}
+
+function updateAutoSyncUI() {
+    const btn = document.getElementById('auto-sync-toggle');
+    if (btn) {
+        btn.className = D.autoSyncEnabled ? 'btn btn-sm btn-success' : 'btn btn-sm btn-secondary';
+        btn.innerHTML = `<i class="ri-${D.autoSyncEnabled?'check':'close'}-line"></i> Auto-sync: ${D.autoSyncEnabled?'ON':'OFF'}`;
     }
 }
 
-// Init sync on load
+// Sync on page close/hide
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && syncState && syncState.code && D.autoSyncEnabled) {
+        // Use sendBeacon for reliable sync on page close
+        const payload = JSON.stringify({
+            data: D, timestamp: new Date().toISOString(), deviceId: getDeviceId()
+        });
+        navigator.sendBeacon && navigator.sendBeacon(
+            SYNC_API + '/push-beacon?code=' + syncState.code + '&pin=' + syncState.pin,
+            new Blob([payload], { type: 'application/json' })
+        );
+    }
+});
+
+// Auto-sync on page load if connected
+function autoSyncCheck() {
+    updateSyncUI();
+    updateAutoSyncUI();
+    if (syncState && syncState.code) {
+        if (D.autoSyncEnabled) startAutoSync();
+        if (syncState.lastSync) {
+            const last = new Date(syncState.lastSync).getTime();
+            if (Date.now() - last > AUTO_SYNC_INTERVAL) {
+                syncLog('ข้อมูลอาจไม่ตรงกัน — กำลัง auto-pull...', 'info');
+            }
+        }
+    }
+}
 setTimeout(autoSyncCheck, 1000);
+
+// ===== FEATURE 2: CONFLICT RESOLUTION =====
+async function syncPullWithConflict() {
+    if (!syncState || !syncState.code) { syncToast('ยังไม่ได้เชื่อมต่อ', true); return; }
+
+    try {
+        const res = await fetch(SYNC_API + '/pull', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'X-Sync-Code':syncState.code, 'X-Sync-Pin':syncState.pin }
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error);
+        if (!result.data) { syncToast('ยังไม่มีข้อมูลบน Cloud', true); return; }
+
+        const cloudTime = new Date(result.pushedAt).getTime();
+        const localTime = new Date(D.lastModified || 0).getTime();
+
+        if (Math.abs(cloudTime - localTime) < 5000) {
+            syncToast('ข้อมูลตรงกันแล้ว'); return;
+        }
+
+        if (localTime > cloudTime) {
+            showConflictDialog(result.data, result.pushedAt, result.deviceId);
+        } else {
+            // Cloud is newer, auto-apply
+            Object.assign(D, result.data);
+            save(); renderAll();
+            syncState.lastSync = result.pushedAt;
+            localStorage.setItem('sb_sync', JSON.stringify(syncState));
+            syncLog('Pull สำเร็จ (Cloud ใหม่กว่า)', 'success');
+            syncToast('ข้อมูลอัปเดตจาก Cloud แล้ว');
+            updateSyncUI();
+        }
+    } catch(e) {
+        syncLog('Pull ผิดพลาด: '+e.message, 'error');
+        syncToast('Pull ล้มเหลว', true);
+    }
+}
+
+function showConflictDialog(cloudData, cloudTime, cloudDevice) {
+    const overlay = document.getElementById('conflict-overlay');
+    if (!overlay) return;
+    const localCount = D.tasks.length + D.notes.length + D.journals.length;
+    const cloudCount = (cloudData.tasks||[]).length + (cloudData.notes||[]).length + (cloudData.journals||[]).length;
+    document.getElementById('conflict-local-info').innerHTML =
+        `<strong>เครื่องนี้</strong><br>แก้ไขล่าสุด: ${new Date(D.lastModified).toLocaleString('th-TH')}<br>รายการ: ${localCount} items<br>Device: ${getDeviceId()}`;
+    document.getElementById('conflict-cloud-info').innerHTML =
+        `<strong>Cloud</strong><br>อัปโหลดเมื่อ: ${new Date(cloudTime).toLocaleString('th-TH')}<br>รายการ: ${cloudCount} items<br>Device: ${cloudDevice||'unknown'}`;
+    overlay.classList.add('show');
+    window._conflictCloudData = cloudData;
+    window._conflictCloudTime = cloudTime;
+}
+
+function resolveConflict(choice) {
+    const overlay = document.getElementById('conflict-overlay');
+    if (overlay) overlay.classList.remove('show');
+
+    if (choice === 'cloud') {
+        Object.assign(D, window._conflictCloudData);
+        save(); renderAll();
+        syncLog('เลือกใช้ข้อมูลจาก Cloud', 'success');
+        syncToast('ใช้ข้อมูลจาก Cloud แล้ว');
+    } else if (choice === 'local') {
+        syncPush();
+        syncLog('เลือกใช้ข้อมูลในเครื่อง + Push ขึ้น Cloud', 'success');
+    } else if (choice === 'merge') {
+        mergeData(window._conflictCloudData);
+        syncLog('รวมข้อมูลทั้งสองเครื่อง', 'success');
+        syncToast('รวมข้อมูลสำเร็จ!');
+    }
+    syncState.lastSync = new Date().toISOString();
+    localStorage.setItem('sb_sync', JSON.stringify(syncState));
+    updateSyncUI();
+}
+
+function mergeData(cloudData) {
+    // Merge arrays: add items from cloud that don't exist locally (by id)
+    ['inbox','tasks','projects','areas','notes','habits','journals','srCards','books','finances','okrs','visions','reviews','timeEntries'].forEach(key => {
+        if (!Array.isArray(cloudData[key])) return;
+        const localIds = new Set((D[key]||[]).map(x=>x.id));
+        cloudData[key].forEach(item => {
+            if (!localIds.has(item.id)) { D[key].push(item); }
+        });
+    });
+    // Merge trash
+    if (Array.isArray(cloudData.trash)) {
+        const localTrashIds = new Set((D.trash||[]).map(x=>x.item?.id));
+        cloudData.trash.forEach(t => { if (!localTrashIds.has(t.item?.id)) D.trash.push(t); });
+    }
+    // Keep higher XP/level
+    if ((cloudData.xp||0) > D.xp) { D.xp = cloudData.xp; D.level = cloudData.level; }
+    // Merge heatmap (keep higher values)
+    if (cloudData.heatmap) { Object.entries(cloudData.heatmap).forEach(([k,v])=>{ if(!D.heatmap[k] || v > D.heatmap[k]) D.heatmap[k]=v; }); }
+    save(); renderAll();
+}
+
+// ===== FEATURE 3: MOBILE RESPONSIVE =====
+function initMobile() {
+    // Add hamburger menu button
+    const topbar = document.querySelector('.topbar-left');
+    if (topbar && window.innerWidth <= 768) {
+        if (!document.getElementById('mobile-menu-btn')) {
+            const btn = document.createElement('button');
+            btn.id = 'mobile-menu-btn';
+            btn.className = 'topbar-btn mobile-menu-btn';
+            btn.innerHTML = '<i class="ri-menu-line"></i>';
+            btn.onclick = toggleMobileSidebar;
+            topbar.insertBefore(btn, topbar.firstChild);
+        }
+    }
+    // Close sidebar on nav click (mobile)
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                document.querySelector('.sidebar').classList.remove('open');
+                document.getElementById('sidebar-backdrop')?.remove();
+            }
+        });
+    });
+}
+
+function toggleMobileSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    sidebar.classList.toggle('open');
+    let backdrop = document.getElementById('sidebar-backdrop');
+    if (sidebar.classList.contains('open')) {
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'sidebar-backdrop';
+            backdrop.className = 'sidebar-backdrop';
+            backdrop.onclick = () => { sidebar.classList.remove('open'); backdrop.remove(); };
+            document.body.appendChild(backdrop);
+        }
+    } else {
+        if (backdrop) backdrop.remove();
+    }
+}
+
+window.addEventListener('resize', initMobile);
+document.addEventListener('DOMContentLoaded', () => setTimeout(initMobile, 200));
+
+// ===== FEATURE 4: BROWSER PUSH NOTIFICATIONS =====
+async function requestNotificationPermission() {
+    if (!('Notification' in window)) { syncToast('เบราว์เซอร์ไม่รองรับ Notification', true); return; }
+    const perm = await Notification.requestPermission();
+    D.notificationsEnabled = (perm === 'granted');
+    save();
+    updateNotifUI();
+    if (perm === 'granted') syncToast('เปิดการแจ้งเตือนสำเร็จ!');
+    else syncToast('การแจ้งเตือนถูกปฏิเสธ', true);
+}
+
+function sendNotification(title, body, icon='🧠') {
+    if (!D.notificationsEnabled || Notification.permission !== 'granted') return;
+    try {
+        new Notification(title, { body, icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">'+icon+'</text></svg>', badge: icon });
+    } catch(e) {}
+}
+
+function updateNotifUI() {
+    const btn = document.getElementById('notif-toggle');
+    if (btn) {
+        btn.className = D.notificationsEnabled ? 'btn btn-sm btn-success' : 'btn btn-sm btn-secondary';
+        btn.innerHTML = `<i class="ri-notification-${D.notificationsEnabled?'3':'off'}-line"></i> แจ้งเตือน: ${D.notificationsEnabled?'ON':'OFF'}`;
+    }
+}
+
+// Check deadlines and remind
+function checkDeadlineNotifications() {
+    if (!D.notificationsEnabled) return;
+    const todayStr = today();
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+    const tomorrowStr = tomorrow.toISOString().slice(0,10);
+
+    // Projects with approaching deadlines
+    D.projects.forEach(p => {
+        if (p.deadline === todayStr) sendNotification('⚠️ เดดไลน์วันนี้!', p.name, '🔥');
+        else if (p.deadline === tomorrowStr) sendNotification('📅 เดดไลน์พรุ่งนี้', p.name, '⏰');
+    });
+
+    // Incomplete habits
+    const incompleteHabits = D.habits.filter(h => !(h.days||{})[todayStr]);
+    if (incompleteHabits.length > 0) {
+        sendNotification('💪 นิสัยที่ยังไม่ได้ทำ', incompleteHabits.map(h=>h.name).join(', '), '🎯');
+    }
+
+    // High priority tasks not done
+    const urgentTasks = D.tasks.filter(t => !t.done && t.priority === 'high' && t.date === todayStr);
+    if (urgentTasks.length > 0) {
+        sendNotification('🔴 งานสำคัญมากค้างอยู่', urgentTasks.map(t=>t.name).join(', '), '⚡');
+    }
+}
+
+// Schedule notification checks
+function scheduleNotifications() {
+    // Check at 8 AM, 12 PM, 6 PM
+    const now = new Date();
+    const checkTimes = [8, 12, 18];
+    checkTimes.forEach(hour => {
+        const target = new Date(now);
+        target.setHours(hour, 0, 0, 0);
+        if (target > now) {
+            setTimeout(() => {
+                checkDeadlineNotifications();
+                // Re-schedule for next day
+                setTimeout(scheduleNotifications, 60000);
+            }, target - now);
+        }
+    });
+}
+setTimeout(() => { if (D.notificationsEnabled) scheduleNotifications(); }, 2000);
+
+// ===== FEATURE 5: FULL-TEXT SEARCH =====
+function fullTextSearch(query) {
+    if (!query || query.length < 2) return [];
+    const q = query.toLowerCase();
+    const results = [];
+
+    // Search tasks
+    D.tasks.forEach(t => {
+        if (t.name.toLowerCase().includes(q)) results.push({ type:'task', icon:'ri-task-line', color:'blue', title:t.name, sub:`งาน • ${t.done?'เสร็จ':'ยังไม่เสร็จ'}`, page:'today', data:t });
+    });
+
+    // Search notes
+    D.notes.forEach(n => {
+        if ((n.title||'').toLowerCase().includes(q) || (n.content||'').toLowerCase().includes(q))
+            results.push({ type:'note', icon:'ri-sticky-note-2-line', color:'purple', title:n.title, sub:`โน้ต • ${(n.tags||[]).join(', ')}`, page:'notes', data:n });
+    });
+
+    // Search projects
+    D.projects.forEach(p => {
+        if (p.name.toLowerCase().includes(q) || (p.desc||'').toLowerCase().includes(q))
+            results.push({ type:'project', icon:'ri-rocket-2-line', color:'orange', title:p.name, sub:`โปรเจกต์ • ${p.deadline||''}`, page:'projects', data:p });
+    });
+
+    // Search journals
+    D.journals.forEach(j => {
+        if ((j.text||'').toLowerCase().includes(q))
+            results.push({ type:'journal', icon:'ri-quill-pen-line', color:'pink', title:j.date, sub:`Journal • ${(j.text||'').slice(0,60)}...`, page:'journal', data:j });
+    });
+
+    // Search inbox
+    D.inbox.forEach(i => {
+        if (i.text.toLowerCase().includes(q))
+            results.push({ type:'inbox', icon:'ri-inbox-2-line', color:'cyan', title:i.text, sub:'Inbox', page:'inbox', data:i });
+    });
+
+    // Search books
+    D.books.forEach(b => {
+        if ((b.title||'').toLowerCase().includes(q) || (b.author||'').toLowerCase().includes(q))
+            results.push({ type:'book', icon:'ri-book-open-line', color:'green', title:b.title, sub:`หนังสือ • ${b.author}`, page:'reading', data:b });
+    });
+
+    // Search finance
+    D.finances.forEach(f => {
+        if ((f.desc||'').toLowerCase().includes(q))
+            results.push({ type:'finance', icon:'ri-money-dollar-circle-line', color:'yellow', title:f.desc, sub:`${f.type==='income'?'รายรับ':'รายจ่าย'} • ฿${fmt(f.amount)}`, page:'finance', data:f });
+    });
+
+    // Search areas
+    D.areas.forEach(a => {
+        if (a.name.toLowerCase().includes(q))
+            results.push({ type:'area', icon:'ri-compass-3-line', color:'green', title:a.name, sub:'Area', page:'areas', data:a });
+    });
+
+    return results;
+}
+
+function renderSearchResults(query) {
+    const results = fullTextSearch(query);
+    const container = document.getElementById('search-results');
+    if (!container) return;
+
+    if (!query || query.length < 2) {
+        container.style.display = 'none'; return;
+    }
+
+    container.style.display = 'block';
+    if (results.length === 0) {
+        container.innerHTML = '<div class="search-empty"><i class="ri-search-line"></i> ไม่พบผลลัพธ์</div>';
+        return;
+    }
+
+    container.innerHTML = `<div class="search-count">${results.length} ผลลัพธ์</div>` +
+        results.slice(0, 20).map(r => `
+            <div class="search-result-item" onclick="nav('${r.page}');document.getElementById('search-results').style.display='none'">
+                <div class="search-result-icon" style="color:var(--accent-${r.color})"><i class="${r.icon}"></i></div>
+                <div class="search-result-info">
+                    <div class="search-result-title">${esc(r.title)}</div>
+                    <div class="search-result-sub">${esc(r.sub)}</div>
+                </div>
+                <div class="search-result-type">${r.type}</div>
+            </div>
+        `).join('');
+}
+
+// ===== FEATURE 6: RECYCLE BIN (TRASH) =====
+function moveToTrash(source, item) {
+    if (!D.trash) D.trash = [];
+    D.trash.push({
+        source,
+        item: {...item},
+        deletedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 30*24*60*60*1000).toISOString()
+    });
+    // Keep max 100 items in trash
+    while (D.trash.length > 100) D.trash.shift();
+    save();
+}
+
+function restoreFromTrash(idx) {
+    if (!D.trash || !D.trash[idx]) return;
+    const entry = D.trash[idx];
+    const target = D[entry.source];
+    if (Array.isArray(target)) {
+        target.push(entry.item);
+        D.trash.splice(idx, 1);
+        save(); renderAll(); renderTrash();
+        syncToast(`กู้คืน "${entry.item.name || entry.item.text || entry.item.title || 'รายการ'}" สำเร็จ!`);
+        addXP(1);
+    }
+}
+
+function permanentDelete(idx) {
+    if (!D.trash || !D.trash[idx]) return;
+    if (!confirm('ลบถาวร? ไม่สามารถกู้คืนได้')) return;
+    D.trash.splice(idx, 1);
+    save(); renderTrash();
+}
+
+function emptyTrash() {
+    if (!confirm('ล้างถังขยะทั้งหมด? ไม่สามารถกู้คืนได้')) return;
+    D.trash = [];
+    save(); renderTrash();
+    syncToast('ล้างถังขยะแล้ว');
+}
+
+function cleanExpiredTrash() {
+    if (!D.trash) return;
+    const now = Date.now();
+    D.trash = D.trash.filter(t => new Date(t.expiresAt).getTime() > now);
+    save();
+}
+
+function renderTrash() {
+    const list = document.getElementById('trash-list');
+    if (!list) return;
+    cleanExpiredTrash();
+    const trash = D.trash || [];
+    document.getElementById('trash-count').textContent = trash.length;
+
+    if (trash.length === 0) {
+        list.innerHTML = '<div class="empty-state"><i class="ri-delete-bin-line" style="font-size:48px;color:var(--text-muted)"></i><p style="color:var(--text-secondary);margin-top:8px">ถังขยะว่าง</p></div>';
+        return;
+    }
+
+    list.innerHTML = trash.map((t, i) => {
+        const name = t.item.name || t.item.text || t.item.title || 'รายการ';
+        const daysLeft = Math.ceil((new Date(t.expiresAt).getTime() - Date.now()) / (24*60*60*1000));
+        const sourceLabel = {inbox:'Inbox',tasks:'งาน',projects:'โปรเจกต์',notes:'โน้ต',habits:'นิสัย',books:'หนังสือ'}[t.source] || t.source;
+        return `<div class="trash-item">
+            <div class="trash-item-info">
+                <div class="trash-item-name">${esc(name)}</div>
+                <div class="trash-item-meta">จาก ${sourceLabel} • ลบเมื่อ ${new Date(t.deletedAt).toLocaleDateString('th-TH')} • เหลือ ${daysLeft} วัน</div>
+            </div>
+            <div class="trash-item-actions">
+                <button class="btn btn-sm btn-success" onclick="restoreFromTrash(${i})"><i class="ri-arrow-go-back-line"></i> กู้คืน</button>
+                <button class="btn btn-sm btn-danger" onclick="permanentDelete(${i})"><i class="ri-delete-bin-line"></i></button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ===== FEATURE 7: WEEKLY PDF REPORT =====
+function generateWeeklyPDF() {
+    const todayDate = new Date();
+    const weekAgo = new Date(todayDate.getTime() - 7*24*60*60*1000);
+
+    const tasksCompleted = D.tasks.filter(t => t.done).length;
+    const tasksPending = D.tasks.filter(t => !t.done).length;
+    const habitsThisWeek = D.habits.reduce((sum, h) => {
+        return sum + Object.keys(h.days||{}).filter(d => new Date(d) >= weekAgo).length;
+    }, 0);
+    const journalsThisWeek = D.journals.filter(j => new Date(j.date) >= weekAgo).length;
+    const finIncome = D.finances.filter(f => f.type==='income' && new Date(f.date) >= weekAgo).reduce((s,f) => s+f.amount, 0);
+    const finExpense = D.finances.filter(f => f.type==='expense' && new Date(f.date) >= weekAgo).reduce((s,f) => s+f.amount, 0);
+
+    // Create printable HTML
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Weekly Report - Second Brain</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:'Segoe UI',Tahoma,sans-serif;padding:40px;color:#1a1a2e;line-height:1.6}
+        h1{font-size:28px;margin-bottom:4px;color:#4a7dff}
+        .subtitle{color:#666;margin-bottom:30px;font-size:14px}
+        .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:30px}
+        .stat{background:#f8f9fa;border-radius:12px;padding:20px;text-align:center}
+        .stat-val{font-size:32px;font-weight:700;color:#4a7dff}
+        .stat-label{font-size:12px;color:#666;margin-top:4px}
+        h2{font-size:18px;color:#1a1a2e;margin:24px 0 12px;padding-bottom:6px;border-bottom:2px solid #4a7dff}
+        table{width:100%;border-collapse:collapse;margin-bottom:20px}
+        th{background:#4a7dff;color:white;padding:8px 12px;text-align:left;font-size:12px}
+        td{padding:8px 12px;border-bottom:1px solid #eee;font-size:13px}
+        tr:nth-child(even){background:#f8f9fa}
+        .footer{margin-top:40px;text-align:center;color:#999;font-size:11px;border-top:1px solid #eee;padding-top:16px}
+        .mood-row{display:flex;gap:8px;margin-bottom:8px}
+        @media print{body{padding:20px}}
+    </style></head><body>
+        <h1>📊 Weekly Report</h1>
+        <p class="subtitle">${weekAgo.toLocaleDateString('th-TH')} — ${todayDate.toLocaleDateString('th-TH')} | Level ${D.level} • ${D.xp} XP</p>
+
+        <div class="grid">
+            <div class="stat"><div class="stat-val">${tasksCompleted}</div><div class="stat-label">งานเสร็จ</div></div>
+            <div class="stat"><div class="stat-val">${tasksPending}</div><div class="stat-label">งานค้าง</div></div>
+            <div class="stat"><div class="stat-val">${D.streak}</div><div class="stat-label">วัน Streak</div></div>
+            <div class="stat"><div class="stat-val">${habitsThisWeek}</div><div class="stat-label">Habit Checks</div></div>
+            <div class="stat"><div class="stat-val">${journalsThisWeek}</div><div class="stat-label">Journal Entries</div></div>
+            <div class="stat"><div class="stat-val">฿${fmt(finIncome - finExpense)}</div><div class="stat-label">Net Income</div></div>
+        </div>
+
+        <h2>📋 งานที่เสร็จแล้ว</h2>
+        <table><tr><th>งาน</th><th>Priority</th><th>วันที่</th></tr>
+        ${D.tasks.filter(t=>t.done).slice(-10).map(t=>`<tr><td>${esc(t.name)}</td><td>${t.priority}</td><td>${t.date}</td></tr>`).join('')}
+        </table>
+
+        <h2>🚀 โปรเจกต์</h2>
+        <table><tr><th>ชื่อ</th><th>Progress</th><th>Deadline</th></tr>
+        ${D.projects.map(p=>`<tr><td>${p.emoji||''} ${esc(p.name)}</td><td>${p.progress||0}%</td><td>${p.deadline||'-'}</td></tr>`).join('')}
+        </table>
+
+        <h2>💰 การเงิน</h2>
+        <table><tr><th>รายรับ</th><th>รายจ่าย</th><th>คงเหลือ</th></tr>
+        <tr><td style="color:green">฿${fmt(finIncome)}</td><td style="color:red">฿${fmt(finExpense)}</td><td><strong>฿${fmt(finIncome-finExpense)}</strong></td></tr>
+        </table>
+
+        <h2>📝 Journal สัปดาห์นี้</h2>
+        ${D.journals.filter(j=>new Date(j.date)>=weekAgo).map(j=>`<div class="mood-row"><strong>${j.date}</strong> ${j.mood||''} — ${esc((j.text||'').slice(0,100))}</div>`).join('') || '<p>ไม่มีบันทึก</p>'}
+
+        <div class="footer">Generated by Second Brain — ${new Date().toLocaleString('th-TH')}</div>
+    </body></html>`);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 500);
+    addXP(5);
+    syncToast('สร้าง Weekly Report สำเร็จ!');
+}
+
+// ===== FEATURE 8: NOTION / GOOGLE CAL INTEGRATION STUBS =====
+function openIntegrations() {
+    const overlay = document.getElementById('integrations-overlay');
+    if (overlay) overlay.classList.add('show');
+}
+function closeIntegrations() {
+    const overlay = document.getElementById('integrations-overlay');
+    if (overlay) overlay.classList.remove('show');
+}
 
 // ===== PWA =====
 if('serviceWorker' in navigator){
