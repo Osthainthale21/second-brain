@@ -13,11 +13,68 @@
 </head>
 <body>
 
-<!-- PIN LOCK -->
+<!-- ===== AUTH LOGIN/REGISTER SCREEN ===== -->
+<div class="auth-screen" id="auth-screen">
+    <div class="auth-bg"></div>
+    <div class="auth-container">
+        <div class="auth-logo">
+            <div class="auth-logo-icon"><i class="ri-brain-line"></i></div>
+            <h1 id="auth-app-name">Second Brain</h1>
+            <p>ระบบจัดการชีวิตและงานอัจฉริยะ</p>
+        </div>
+
+        <!-- Login Form -->
+        <div class="auth-form" id="auth-login-form">
+            <h2>เข้าสู่ระบบ</h2>
+            <div class="auth-field"><i class="ri-mail-line"></i><input type="email" id="auth-email" placeholder="อีเมล" autocomplete="email"></div>
+            <div class="auth-field"><i class="ri-lock-password-line"></i><input type="password" id="auth-password" placeholder="รหัสผ่าน" autocomplete="current-password"></div>
+            <div class="auth-error" id="auth-login-error"></div>
+            <button class="auth-btn" id="auth-login-btn" onclick="authLogin()"><i class="ri-login-box-line"></i> เข้าสู่ระบบ</button>
+            <div class="auth-divider"><span>หรือ</span></div>
+            <button class="auth-btn auth-btn-outline" onclick="authShowRegister()"><i class="ri-user-add-line"></i> สมัครสมาชิกใหม่</button>
+            <button class="auth-btn auth-btn-ghost" onclick="authSkipLogin()"><i class="ri-arrow-right-line"></i> ใช้งานแบบไม่ล็อกอิน</button>
+        </div>
+
+        <!-- Register Form -->
+        <div class="auth-form" id="auth-register-form" style="display:none">
+            <h2>สมัครสมาชิก</h2>
+            <div class="auth-field"><i class="ri-user-line"></i><input type="text" id="auth-reg-name" placeholder="ชื่อที่แสดง" autocomplete="name"></div>
+            <div class="auth-field"><i class="ri-mail-line"></i><input type="email" id="auth-reg-email" placeholder="อีเมล" autocomplete="email"></div>
+            <div class="auth-field"><i class="ri-lock-password-line"></i><input type="password" id="auth-reg-password" placeholder="รหัสผ่าน (6+ ตัวอักษร)" autocomplete="new-password"></div>
+            <div class="auth-field"><i class="ri-lock-password-line"></i><input type="password" id="auth-reg-password2" placeholder="ยืนยันรหัสผ่าน" autocomplete="new-password"></div>
+            <div class="auth-field"><i class="ri-edit-line"></i><input type="text" id="auth-reg-appname" placeholder="ตั้งชื่อแอป (เช่น My Brain)" value="Second Brain"></div>
+            <div class="auth-error" id="auth-reg-error"></div>
+            <button class="auth-btn" onclick="authRegister()"><i class="ri-check-line"></i> สมัครสมาชิก</button>
+            <button class="auth-btn auth-btn-ghost" onclick="authShowLogin()"><i class="ri-arrow-left-line"></i> กลับหน้าเข้าสู่ระบบ</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== ONBOARDING GUIDE ===== -->
+<div class="onboarding-overlay" id="onboarding-overlay">
+    <div class="onboarding-card" id="onboarding-card">
+        <!-- Step indicators -->
+        <div class="onboarding-steps" id="onboarding-dots"></div>
+
+        <!-- Step content -->
+        <div class="onboarding-content" id="onboarding-content"></div>
+
+        <!-- Navigation -->
+        <div class="onboarding-nav">
+            <button class="btn btn-secondary" id="onboarding-skip" onclick="onboardingSkip()">ข้าม</button>
+            <div style="display:flex;gap:8px">
+                <button class="btn btn-secondary" id="onboarding-prev" onclick="onboardingPrev()" style="display:none"><i class="ri-arrow-left-line"></i> ก่อนหน้า</button>
+                <button class="btn btn-primary" id="onboarding-next" onclick="onboardingNext()">ถัดไป <i class="ri-arrow-right-line"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PIN LOCK (kept for offline/local PIN) -->
 <div class="pin-lock" id="pin-lock">
     <div class="pin-lock-inner">
         <div class="pin-icon"><i class="ri-brain-line"></i></div>
-        <h2>Second Brain</h2>
+        <h2 id="pin-app-name">Second Brain</h2>
         <p>ใส่ PIN เพื่อเข้าใช้งาน</p>
         <div class="pin-dots" id="pin-dots"><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div></div>
         <div class="pin-pad">
@@ -89,7 +146,21 @@
     <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <div class="sidebar-logo"><div class="logo-icon"><i class="ri-brain-line"></i></div><div><h1>Second Brain</h1><small>ระบบสมองที่สอง</small></div></div>
+            <div class="sidebar-logo"><div class="logo-icon"><i class="ri-brain-line"></i></div><div><h1 id="sidebar-app-name">Second Brain</h1><small id="sidebar-app-sub">ระบบสมองที่สอง</small></div></div>
+            <!-- User Profile -->
+            <div class="sidebar-user" id="sidebar-user" style="display:none">
+                <div class="sidebar-user-avatar" id="sidebar-user-avatar">U</div>
+                <div class="sidebar-user-info">
+                    <span class="sidebar-user-name" id="sidebar-user-name">User</span>
+                    <span class="sidebar-user-email" id="sidebar-user-email">email</span>
+                </div>
+                <button class="sidebar-user-menu-btn" onclick="toggleUserMenu()"><i class="ri-more-2-fill"></i></button>
+            </div>
+            <div class="sidebar-user-menu" id="sidebar-user-menu" style="display:none">
+                <div class="user-menu-item" onclick="openProfileSettings()"><i class="ri-settings-3-line"></i> ตั้งค่าโปรไฟล์</div>
+                <div class="user-menu-item" onclick="openAppNameSettings()"><i class="ri-edit-line"></i> เปลี่ยนชื่อแอป</div>
+                <div class="user-menu-item" onclick="authLogout()" style="color:var(--accent-red)"><i class="ri-logout-box-line"></i> ออกจากระบบ</div>
+            </div>
             <div class="xp-bar-sidebar"><div class="xp-info"><span id="xp-level-text">Lv.1 Beginner</span><span id="xp-text">0/100 XP</span></div><div class="xp-track"><div class="xp-fill" id="xp-bar" style="width:0%"></div></div></div>
         </div>
         <nav class="sidebar-nav">

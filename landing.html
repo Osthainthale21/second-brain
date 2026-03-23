@@ -1,0 +1,1498 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Second Brain — ระบบจัดการชีวิตอัจฉริยะ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Noto+Sans+Thai:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.1.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a1a;
+            --bg-secondary: #111128;
+            --bg-card: rgba(255, 255, 255, 0.04);
+            --bg-card-hover: rgba(255, 255, 255, 0.08);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f0f0f8;
+            --text-secondary: #a0a0c0;
+            --text-muted: #6a6a8a;
+            --accent-blue: #4f7df5;
+            --accent-purple: #8b5cf6;
+            --accent-pink: #d946ef;
+            --gradient-cta: linear-gradient(135deg, #4f7df5, #8b5cf6);
+            --gradient-cta-hover: linear-gradient(135deg, #6390ff, #9d6fff);
+            --gradient-hero: linear-gradient(135deg, #0a0a1a 0%, #1a1040 40%, #0f1a3a 70%, #0a0a1a 100%);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+            --radius-xl: 28px;
+            --shadow-card: 0 4px 30px rgba(0, 0, 0, 0.3);
+            --font-thai: 'Noto Sans Thai', sans-serif;
+            --font-en: 'Inter', sans-serif;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: var(--font-thai);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        .en {
+            font-family: var(--font-en);
+        }
+
+        /* ===== NAV ===== */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 0 24px;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        nav.scrolled {
+            background: rgba(10, 10, 26, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 1px 0 var(--border-color);
+        }
+
+        .nav-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 72px;
+        }
+
+        .nav-logo {
+            font-family: var(--font-en);
+            font-weight: 800;
+            font-size: 1.35rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-logo i {
+            font-size: 1.5rem;
+            background: var(--gradient-cta);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-cta {
+            background: var(--gradient-cta);
+            color: #fff !important;
+            padding: 8px 22px;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: opacity 0.2s, transform 0.2s;
+        }
+
+        .nav-cta:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .nav-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 72px;
+                left: 0;
+                right: 0;
+                flex-direction: column;
+                background: rgba(10, 10, 26, 0.97);
+                backdrop-filter: blur(20px);
+                padding: 24px;
+                gap: 20px;
+                border-bottom: 1px solid var(--border-color);
+            }
+            .nav-links.open {
+                display: flex;
+            }
+            .nav-toggle {
+                display: block;
+            }
+        }
+
+        /* ===== HERO ===== */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 120px 24px 80px;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-hero);
+            z-index: 0;
+        }
+
+        .hero-bg::before {
+            content: '';
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(79, 125, 245, 0.15) 0%, rgba(139, 92, 246, 0.08) 40%, transparent 70%);
+            animation: heroPulse 8s ease-in-out infinite;
+        }
+
+        .hero-bg::after {
+            content: '';
+            position: absolute;
+            bottom: 10%;
+            right: 20%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(217, 70, 239, 0.1) 0%, transparent 60%);
+            animation: heroPulse 10s ease-in-out infinite reverse;
+        }
+
+        @keyframes heroPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.6; }
+        }
+
+        .hero-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            animation: orbFloat 12s ease-in-out infinite;
+        }
+
+        .hero-orb-1 {
+            width: 300px;
+            height: 300px;
+            background: rgba(79, 125, 245, 0.12);
+            top: 10%;
+            left: 10%;
+        }
+
+        .hero-orb-2 {
+            width: 250px;
+            height: 250px;
+            background: rgba(139, 92, 246, 0.1);
+            bottom: 20%;
+            right: 15%;
+            animation-delay: -4s;
+        }
+
+        .hero-orb-3 {
+            width: 200px;
+            height: 200px;
+            background: rgba(217, 70, 239, 0.08);
+            top: 50%;
+            left: 60%;
+            animation-delay: -8s;
+        }
+
+        @keyframes orbFloat {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            33% { transform: translateY(-30px) translateX(20px); }
+            66% { transform: translateY(20px) translateX(-15px); }
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 1;
+            max-width: 800px;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 50px;
+            font-size: 0.85rem;
+            color: #c4b5fd;
+            margin-bottom: 28px;
+            font-weight: 500;
+        }
+
+        .hero-badge i {
+            font-size: 1rem;
+        }
+
+        .hero h1 {
+            font-size: clamp(2.5rem, 6vw, 4.2rem);
+            font-weight: 900;
+            line-height: 1.2;
+            margin-bottom: 20px;
+            letter-spacing: -0.02em;
+        }
+
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, #4f7df5, #8b5cf6, #d946ef);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-size: 200% 200%;
+            animation: gradientShift 6s ease-in-out infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .hero p {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 40px;
+            line-height: 1.8;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 32px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: none;
+            font-family: var(--font-thai);
+        }
+
+        .btn-primary {
+            background: var(--gradient-cta);
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(79, 125, 245, 0.3);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 30px rgba(79, 125, 245, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 48px;
+            margin-top: 60px;
+            padding-top: 40px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .hero-stat {
+            text-align: center;
+        }
+
+        .hero-stat-num {
+            font-family: var(--font-en);
+            font-size: 1.8rem;
+            font-weight: 800;
+            background: var(--gradient-cta);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        @media (max-width: 480px) {
+            .hero-stats {
+                gap: 24px;
+            }
+            .hero-stat-num {
+                font-size: 1.4rem;
+            }
+        }
+
+        /* ===== SECTIONS ===== */
+        section {
+            padding: 100px 24px;
+        }
+
+        .section-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 64px;
+        }
+
+        .section-label {
+            display: inline-block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent-purple);
+            margin-bottom: 12px;
+            font-family: var(--font-en);
+        }
+
+        .section-title {
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            font-weight: 800;
+            margin-bottom: 16px;
+            letter-spacing: -0.01em;
+        }
+
+        .section-subtitle {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* ===== FEATURES ===== */
+        #features {
+            background: var(--bg-secondary);
+            position: relative;
+        }
+
+        #features::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 32px 28px;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .feature-card:hover {
+            background: var(--bg-card-hover);
+            border-color: rgba(139, 92, 246, 0.2);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 40px rgba(139, 92, 246, 0.08);
+        }
+
+        .feature-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            background: linear-gradient(135deg, rgba(79, 125, 245, 0.15), rgba(139, 92, 246, 0.15));
+            color: #a78bfa;
+        }
+
+        .feature-card h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+
+        /* ===== HOW IT WORKS ===== */
+        #how-it-works {
+            background: var(--bg-primary);
+        }
+
+        .steps-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 32px;
+            position: relative;
+        }
+
+        .steps-container::before {
+            content: '';
+            position: absolute;
+            top: 52px;
+            left: calc(16.66% + 26px);
+            right: calc(16.66% + 26px);
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple), var(--accent-pink));
+            z-index: 0;
+        }
+
+        @media (max-width: 768px) {
+            .steps-container {
+                grid-template-columns: 1fr;
+                gap: 40px;
+            }
+            .steps-container::before {
+                display: none;
+            }
+        }
+
+        .step-card {
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-number {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--gradient-cta);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            font-family: var(--font-en);
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: #fff;
+            box-shadow: 0 4px 20px rgba(79, 125, 245, 0.3);
+        }
+
+        .step-card h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .step-card p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            max-width: 300px;
+            margin: 0 auto;
+        }
+
+        /* ===== PRICING ===== */
+        #pricing {
+            background: var(--bg-secondary);
+            position: relative;
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 900px) {
+            .pricing-grid {
+                grid-template-columns: 1fr;
+                max-width: 420px;
+                margin: 0 auto;
+            }
+        }
+
+        .pricing-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 36px 32px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .pricing-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .pricing-card.popular {
+            border-color: rgba(139, 92, 246, 0.4);
+            background: rgba(139, 92, 246, 0.06);
+            box-shadow: 0 8px 50px rgba(139, 92, 246, 0.12);
+            transform: scale(1.03);
+        }
+
+        .pricing-card.popular:hover {
+            transform: scale(1.03) translateY(-4px);
+        }
+
+        .pricing-badge {
+            position: absolute;
+            top: -14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--gradient-cta);
+            color: #fff;
+            padding: 5px 20px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .pricing-name {
+            font-family: var(--font-en);
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .pricing-price {
+            font-size: 2.8rem;
+            font-weight: 900;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+
+        .pricing-price .currency {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        .pricing-price .period {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .pricing-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 28px;
+        }
+
+        .pricing-features {
+            list-style: none;
+            margin-bottom: 32px;
+        }
+
+        .pricing-features li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .pricing-features li i {
+            color: #34d399;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .pricing-features li.disabled {
+            color: var(--text-muted);
+        }
+
+        .pricing-features li.disabled i {
+            color: var(--text-muted);
+        }
+
+        .pricing-btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            border-radius: 50px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.3s;
+            font-family: var(--font-thai);
+        }
+
+        .pricing-btn-outline {
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            background: transparent;
+        }
+
+        .pricing-btn-outline:hover {
+            border-color: rgba(139, 92, 246, 0.4);
+            background: rgba(139, 92, 246, 0.05);
+        }
+
+        .pricing-btn-fill {
+            background: var(--gradient-cta);
+            color: #fff;
+            border: none;
+            box-shadow: 0 4px 20px rgba(79, 125, 245, 0.3);
+        }
+
+        .pricing-btn-fill:hover {
+            box-shadow: 0 6px 30px rgba(79, 125, 245, 0.5);
+            transform: translateY(-1px);
+        }
+
+        /* ===== TESTIMONIALS ===== */
+        #testimonials {
+            background: var(--bg-primary);
+        }
+
+        .testimonials-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .testimonial-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+
+        .testimonial-card:hover {
+            background: var(--bg-card-hover);
+            transform: translateY(-3px);
+        }
+
+        .testimonial-stars {
+            color: #fbbf24;
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+            display: flex;
+            gap: 2px;
+        }
+
+        .testimonial-text {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.8;
+            font-style: italic;
+        }
+
+        .testimonial-author {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .testimonial-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .testimonial-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .testimonial-role {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* ===== FAQ ===== */
+        #faq {
+            background: var(--bg-secondary);
+        }
+
+        .faq-list {
+            max-width: 750px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .faq-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+
+        .faq-item.active {
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+
+        .faq-question {
+            width: 100%;
+            padding: 20px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            font-family: var(--font-thai);
+            line-height: 1.5;
+        }
+
+        .faq-question i {
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            transition: transform 0.3s;
+            flex-shrink: 0;
+        }
+
+        .faq-item.active .faq-question i {
+            transform: rotate(180deg);
+            color: var(--accent-purple);
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.35s ease, padding 0.35s ease;
+        }
+
+        .faq-item.active .faq-answer {
+            max-height: 300px;
+        }
+
+        .faq-answer-inner {
+            padding: 0 24px 20px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        /* ===== CTA SECTION ===== */
+        .cta-section {
+            background: var(--bg-primary);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.08) 0%, transparent 60%);
+        }
+
+        .cta-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .cta-section h2 {
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            font-weight: 800;
+            margin-bottom: 16px;
+        }
+
+        .cta-section p {
+            color: var(--text-secondary);
+            margin-bottom: 36px;
+            font-size: 1.05rem;
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 64px 24px 32px;
+        }
+
+        .footer-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 48px;
+            margin-bottom: 48px;
+        }
+
+        @media (max-width: 768px) {
+            .footer-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 32px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .footer-brand .nav-logo {
+            margin-bottom: 16px;
+        }
+
+        .footer-brand p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.7;
+            max-width: 300px;
+        }
+
+        .footer-social {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .footer-social a {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+            font-size: 1.1rem;
+        }
+
+        .footer-social a:hover {
+            background: rgba(139, 92, 246, 0.15);
+            border-color: rgba(139, 92, 246, 0.3);
+            color: #a78bfa;
+        }
+
+        .footer-col h4 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col li {
+            margin-bottom: 10px;
+        }
+
+        .footer-col a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover {
+            color: var(--text-secondary);
+        }
+
+        .footer-bottom {
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .footer-bottom p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* ===== ANIMATIONS ===== */
+        .fade-up {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+
+        .fade-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .fade-up-delay-1 { transition-delay: 0.1s; }
+        .fade-up-delay-2 { transition-delay: 0.2s; }
+        .fade-up-delay-3 { transition-delay: 0.3s; }
+        .fade-up-delay-4 { transition-delay: 0.4s; }
+        .fade-up-delay-5 { transition-delay: 0.5s; }
+    </style>
+</head>
+<body>
+    <!-- NAV -->
+    <nav id="navbar">
+        <div class="nav-inner">
+            <a href="#" class="nav-logo">
+                <i class="ri-brain-line"></i>
+                <span>Second Brain</span>
+            </a>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="#features">ฟีเจอร์</a></li>
+                <li><a href="#how-it-works">วิธีใช้งาน</a></li>
+                <li><a href="#pricing">ราคา</a></li>
+                <li><a href="#faq">คำถาม</a></li>
+                <li><a href="index.html" class="nav-cta">เริ่มใช้ฟรี</a></li>
+            </ul>
+            <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+                <i class="ri-menu-3-line"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <section class="hero">
+        <div class="hero-bg">
+            <div class="hero-orb hero-orb-1"></div>
+            <div class="hero-orb hero-orb-2"></div>
+            <div class="hero-orb hero-orb-3"></div>
+        </div>
+        <div class="hero-content">
+            <div class="hero-badge">
+                <i class="ri-flashlight-line"></i>
+                เปิดตัวเวอร์ชัน 2.0 — ฟีเจอร์ใหม่กว่า 34 รายการ
+            </div>
+            <h1>
+                <span class="gradient-text">ระบบสมองที่สอง</span><br>
+                จัดการชีวิตทั้งหมดในที่เดียว
+            </h1>
+            <p>
+                แอปจัดการชีวิตครบวงจร — บันทึก วางแผน ติดตาม และซิงค์ข้อมูลข้ามอุปกรณ์ ออกแบบมาเพื่อให้คุณไม่พลาดทุกสิ่งสำคัญ
+            </p>
+            <div class="hero-buttons">
+                <a href="index.html" class="btn btn-primary">
+                    <i class="ri-rocket-line"></i>
+                    เริ่มใช้ฟรี
+                </a>
+                <a href="#features" class="btn btn-secondary">
+                    <i class="ri-play-circle-line"></i>
+                    ดูตัวอย่าง
+                </a>
+            </div>
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="hero-stat-num en">34+</div>
+                    <div class="hero-stat-label">ฟีเจอร์ทั้งหมด</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-num en">10K+</div>
+                    <div class="hero-stat-label">ผู้ใช้งาน</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-num en">4.9</div>
+                    <div class="hero-stat-label">คะแนนรีวิว</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FEATURES -->
+    <section id="features">
+        <div class="section-container">
+            <div class="section-header fade-up">
+                <div class="section-label">Features</div>
+                <h2 class="section-title">ทุกอย่างที่คุณต้องการ ในแอปเดียว</h2>
+                <p class="section-subtitle">ระบบจัดการชีวิตครบวงจรกว่า 34 ฟีเจอร์ ออกแบบมาเพื่อคนที่อยากควบคุมทุกด้านของชีวิต</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card fade-up fade-up-delay-1">
+                    <div class="feature-icon"><i class="ri-task-line"></i></div>
+                    <h3>รายการสิ่งที่ต้องทำ</h3>
+                    <p>จัดการ To-Do List อัจฉริยะ พร้อมกำหนดความสำคัญ วันครบกำหนด และแจ้งเตือนอัตโนมัติ</p>
+                </div>
+                <div class="feature-card fade-up fade-up-delay-2">
+                    <div class="feature-icon"><i class="ri-wallet-3-line"></i></div>
+                    <h3>จัดการการเงิน</h3>
+                    <p>ติดตามรายรับรายจ่าย ตั้งงบประมาณ และดูสรุปการเงินผ่านกราฟแบบเรียลไทม์</p>
+                </div>
+                <div class="feature-card fade-up fade-up-delay-3">
+                    <div class="feature-icon"><i class="ri-calendar-schedule-line"></i></div>
+                    <h3>ปฏิทินและนัดหมาย</h3>
+                    <p>วางแผนตารางเวลา ตั้งนัดหมาย และรับการแจ้งเตือนล่วงหน้าเพื่อไม่พลาดทุกนัด</p>
+                </div>
+                <div class="feature-card fade-up fade-up-delay-1">
+                    <div class="feature-icon"><i class="ri-sticky-note-line"></i></div>
+                    <h3>บันทึกและโน้ต</h3>
+                    <p>จดบันทึกไอเดีย สร้างโน้ตพร้อม Markdown และจัดหมวดหมู่อย่างเป็นระบบ</p>
+                </div>
+                <div class="feature-card fade-up fade-up-delay-2">
+                    <div class="feature-icon"><i class="ri-heart-pulse-line"></i></div>
+                    <h3>ติดตามสุขภาพ</h3>
+                    <p>บันทึกน้ำหนัก การออกกำลังกาย การนอนหลับ และน้ำดื่มประจำวัน</p>
+                </div>
+                <div class="feature-card fade-up fade-up-delay-3">
+                    <div class="feature-icon"><i class="ri-target-line"></i></div>
+                    <h3>ตั้งเป้าหมาย</h3>
+                    <p>กำหนดเป้าหมายระยะสั้นและยาว ติดตามความก้าวหน้า และฉลองเมื่อสำเร็จ</p>
+                </div>
+                <div class="feature-card fade-up fade-up-delay-1">
+                    <div class="feature-icon"><i class="ri-key-2-line"></i></div>
+                    <h3>จัดการรหัสผ่าน</h3>
+                    <p>เก็บรหัสผ่านอย่างปลอดภัยด้วยการเข้ารหัส พร้อมสร้างรหัสผ่านแข็งแกร่ง</p>
+                </div>
+                <div class="feature-card fade-up fade-up-delay-2">
+                    <div class="feature-icon"><i class="ri-book-read-line"></i></div>
+                    <h3>ติดตามนิสัย</h3>
+                    <p>สร้างนิสัยดีๆ ด้วย Habit Tracker ดู Streak และสถิติการทำซ้ำ</p>
+                </div>
+                <div class="feature-card fade-up fade-up-delay-3">
+                    <div class="feature-icon"><i class="ri-cloud-line"></i></div>
+                    <h3>ซิงค์ข้ามอุปกรณ์</h3>
+                    <p>ข้อมูลทั้งหมดซิงค์ผ่านคลาวด์อัตโนมัติ ใช้งานได้ทุกที่ทุกเวลา</p>
+                </div>
+                <div class="feature-card fade-up fade-up-delay-1">
+                    <div class="feature-icon"><i class="ri-shield-check-line"></i></div>
+                    <h3>ปลอดภัยสูงสุด</h3>
+                    <p>ข้อมูลเข้ารหัสแบบ End-to-End ไม่มีใครเข้าถึงข้อมูลของคุณได้นอกจากตัวคุณเอง</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW IT WORKS -->
+    <section id="how-it-works">
+        <div class="section-container">
+            <div class="section-header fade-up">
+                <div class="section-label">How it Works</div>
+                <h2 class="section-title">เริ่มต้นง่ายๆ ใน 3 ขั้นตอน</h2>
+                <p class="section-subtitle">ไม่ต้องตั้งค่าซับซ้อน เริ่มใช้งานได้ทันที</p>
+            </div>
+            <div class="steps-container">
+                <div class="step-card fade-up fade-up-delay-1">
+                    <div class="step-number">1</div>
+                    <h3>สมัครสมาชิก</h3>
+                    <p>สร้างบัญชีฟรีในไม่กี่วินาที ไม่ต้องใช้บัตรเครดิต เริ่มต้นได้เลย</p>
+                </div>
+                <div class="step-card fade-up fade-up-delay-2">
+                    <div class="step-number">2</div>
+                    <h3>ตั้งค่าตามใจ</h3>
+                    <p>เลือกฟีเจอร์ที่ต้องการ ปรับแต่งธีม และนำเข้าข้อมูลจากแอปอื่นได้</p>
+                </div>
+                <div class="step-card fade-up fade-up-delay-3">
+                    <div class="step-number">3</div>
+                    <h3>ใช้งานทุกวัน</h3>
+                    <p>เริ่มบันทึก วางแผน และจัดการชีวิตทุกด้าน ข้อมูลซิงค์อัตโนมัติทุกอุปกรณ์</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRICING -->
+    <section id="pricing">
+        <div class="section-container">
+            <div class="section-header fade-up">
+                <div class="section-label">Pricing</div>
+                <h2 class="section-title">แผนราคาที่เหมาะกับคุณ</h2>
+                <p class="section-subtitle">เริ่มต้นฟรี อัปเกรดเมื่อพร้อม ยกเลิกได้ตลอดเวลา</p>
+            </div>
+            <div class="pricing-grid">
+                <!-- Free -->
+                <div class="pricing-card fade-up fade-up-delay-1">
+                    <div class="pricing-name en">Free</div>
+                    <div class="pricing-price">ฟรี</div>
+                    <div class="pricing-desc">สำหรับเริ่มต้นใช้งาน</div>
+                    <ul class="pricing-features">
+                        <li><i class="ri-check-line"></i>อุปกรณ์ 1 เครื่อง</li>
+                        <li><i class="ri-check-line"></i>รายการสูงสุด 100 รายการ</li>
+                        <li><i class="ri-check-line"></i>ฟีเจอร์พื้นฐานทั้งหมด</li>
+                        <li><i class="ri-check-line"></i>ธีมมาตรฐาน</li>
+                        <li class="disabled"><i class="ri-close-line"></i>Cloud Sync</li>
+                        <li class="disabled"><i class="ri-close-line"></i>Priority Support</li>
+                    </ul>
+                    <a href="index.html" class="pricing-btn pricing-btn-outline">เริ่มใช้ฟรี</a>
+                </div>
+                <!-- Pro -->
+                <div class="pricing-card popular fade-up fade-up-delay-2">
+                    <div class="pricing-badge">แนะนำ</div>
+                    <div class="pricing-name en">Pro</div>
+                    <div class="pricing-price">
+                        <span class="currency">฿</span>199<span class="period">/เดือน</span>
+                    </div>
+                    <div class="pricing-desc">สำหรับผู้ใช้งานจริงจัง</div>
+                    <ul class="pricing-features">
+                        <li><i class="ri-check-line"></i>อุปกรณ์ไม่จำกัด</li>
+                        <li><i class="ri-check-line"></i>รายการไม่จำกัด</li>
+                        <li><i class="ri-check-line"></i>ฟีเจอร์ทั้งหมด 34+</li>
+                        <li><i class="ri-check-line"></i>Cloud Sync ข้ามอุปกรณ์</li>
+                        <li><i class="ri-check-line"></i>ธีมพรีเมียม</li>
+                        <li><i class="ri-check-line"></i>Priority Support</li>
+                    </ul>
+                    <a href="index.html" class="pricing-btn pricing-btn-fill">เริ่มทดลองฟรี 14 วัน</a>
+                </div>
+                <!-- Team -->
+                <div class="pricing-card fade-up fade-up-delay-3">
+                    <div class="pricing-name en">Team</div>
+                    <div class="pricing-price">
+                        <span class="currency">฿</span>499<span class="period">/เดือน</span>
+                    </div>
+                    <div class="pricing-desc">สำหรับทีมและองค์กร</div>
+                    <ul class="pricing-features">
+                        <li><i class="ri-check-line"></i>ทุกอย่างใน Pro</li>
+                        <li><i class="ri-check-line"></i>แชร์ข้อมูลภายในทีม</li>
+                        <li><i class="ri-check-line"></i>Admin Dashboard</li>
+                        <li><i class="ri-check-line"></i>สมาชิกสูงสุด 20 คน</li>
+                        <li><i class="ri-check-line"></i>API Access</li>
+                        <li><i class="ri-check-line"></i>Dedicated Support</li>
+                    </ul>
+                    <a href="index.html" class="pricing-btn pricing-btn-outline">ติดต่อทีมขาย</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TESTIMONIALS -->
+    <section id="testimonials">
+        <div class="section-container">
+            <div class="section-header fade-up">
+                <div class="section-label">Testimonials</div>
+                <h2 class="section-title">ผู้ใช้จริงพูดถึงเรา</h2>
+                <p class="section-subtitle">มากกว่า 10,000 คนเลือกใช้ Second Brain จัดการชีวิต</p>
+            </div>
+            <div class="testimonials-grid">
+                <div class="testimonial-card fade-up fade-up-delay-1">
+                    <div class="testimonial-stars">
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                    </div>
+                    <p class="testimonial-text">"ใช้มาหลายแอปแล้ว แต่ Second Brain คือดีที่สุด จัดการได้ทุกอย่างในที่เดียว ทั้งการเงิน สุขภาพ และงานประจำวัน ช่วยให้ชีวิตเป็นระเบียบขึ้นมาก"</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">ณ</div>
+                        <div>
+                            <div class="testimonial-name">ณัฐพงษ์ วิริยะกุล</div>
+                            <div class="testimonial-role">Software Engineer</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card fade-up fade-up-delay-2">
+                    <div class="testimonial-stars">
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                    </div>
+                    <p class="testimonial-text">"Cloud Sync ดีมาก ใช้งานบนมือถือแล้วเปิดคอมที่บ้านข้อมูลอัพเดทเลย ระบบติดตามนิสัยช่วยให้ออกกำลังกายครบ 30 วันเป็นครั้งแรก!"</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">พ</div>
+                        <div>
+                            <div class="testimonial-name">พิมพ์ชนก ศรีสุข</div>
+                            <div class="testimonial-role">Content Creator</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="testimonial-card fade-up fade-up-delay-3">
+                    <div class="testimonial-stars">
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-fill"></i>
+                        <i class="ri-star-half-fill"></i>
+                    </div>
+                    <p class="testimonial-text">"ใช้แผน Team ให้ทั้งทีม 12 คน ทุกคนจัดการงานผ่าน Second Brain หมดเลย Dashboard สำหรับ Admin ก็ดูง่ายมาก คุ้มค่าทุกบาท"</p>
+                    <div class="testimonial-author">
+                        <div class="testimonial-avatar">ส</div>
+                        <div>
+                            <div class="testimonial-name">สมชาย ธรรมวงศ์</div>
+                            <div class="testimonial-role">Startup Founder</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section id="faq">
+        <div class="section-container">
+            <div class="section-header fade-up">
+                <div class="section-label">FAQ</div>
+                <h2 class="section-title">คำถามที่พบบ่อย</h2>
+                <p class="section-subtitle">หาคำตอบสำหรับคำถามยอดนิยมได้ที่นี่</p>
+            </div>
+            <div class="faq-list">
+                <div class="faq-item fade-up fade-up-delay-1">
+                    <button class="faq-question">
+                        Second Brain คืออะไร?
+                        <i class="ri-arrow-down-s-line"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            Second Brain คือแอปจัดการชีวิตครบวงจรที่รวม 34+ ฟีเจอร์ไว้ในที่เดียว ตั้งแต่ To-Do List, การเงิน, สุขภาพ, บันทึก, รหัสผ่าน ไปจนถึงการติดตามนิสัย ออกแบบมาเพื่อให้คุณจัดการทุกด้านของชีวิตได้อย่างมีประสิทธิภาพ
+                        </div>
+                    </div>
+                </div>
+                <div class="faq-item fade-up fade-up-delay-2">
+                    <button class="faq-question">
+                        ข้อมูลของฉันปลอดภัยหรือไม่?
+                        <i class="ri-arrow-down-s-line"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            ปลอดภัยที่สุด ข้อมูลทั้งหมดถูกเข้ารหัสแบบ End-to-End ทั้งบนอุปกรณ์และบนคลาวด์ ไม่มีใครสามารถเข้าถึงข้อมูลของคุณได้ แม้แต่ทีมพัฒนาของเรา นอกจากนี้ยังรองรับ PIN และ Biometric Authentication
+                        </div>
+                    </div>
+                </div>
+                <div class="faq-item fade-up fade-up-delay-3">
+                    <button class="faq-question">
+                        ฉันสามารถใช้งานได้บนอุปกรณ์ใดบ้าง?
+                        <i class="ri-arrow-down-s-line"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            Second Brain ทำงานบนเว็บเบราว์เซอร์ทุกชนิด ทั้ง Chrome, Safari, Firefox, Edge บนคอมพิวเตอร์ แท็บเล็ต และสมาร์ทโฟน รองรับทั้ง iOS และ Android ผ่าน PWA (Progressive Web App) สามารถติดตั้งบนหน้าจอหลักได้เลย
+                        </div>
+                    </div>
+                </div>
+                <div class="faq-item fade-up fade-up-delay-4">
+                    <button class="faq-question">
+                        สามารถยกเลิกแผนรายเดือนได้ตลอดเวลาหรือไม่?
+                        <i class="ri-arrow-down-s-line"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            ได้เลย คุณสามารถยกเลิกแผนสมาชิกได้ตลอดเวลาโดยไม่มีค่าใช้จ่ายเพิ่มเติม หลังยกเลิกจะยังใช้งานได้จนหมดรอบบิล จากนั้นจะถูก downgrade เป็นแผน Free โดยข้อมูลทั้งหมดยังคงอยู่
+                        </div>
+                    </div>
+                </div>
+                <div class="faq-item fade-up fade-up-delay-5">
+                    <button class="faq-question">
+                        รองรับการนำเข้าข้อมูลจากแอปอื่นหรือไม่?
+                        <i class="ri-arrow-down-s-line"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            รองรับการนำเข้าข้อมูลจากไฟล์ CSV และ JSON จากแอปยอดนิยม เช่น Notion, Todoist, Google Keep และอื่นๆ ระบบจะจัดรูปแบบข้อมูลให้อัตโนมัติ ทำให้การย้ายมาใช้ Second Brain เป็นเรื่องง่าย
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section">
+        <div class="section-container cta-content fade-up">
+            <h2>พร้อมเริ่มจัดการชีวิตอย่างมีระบบ?</h2>
+            <p>เริ่มต้นใช้ Second Brain ฟรีวันนี้ ไม่ต้องใช้บัตรเครดิต</p>
+            <a href="index.html" class="btn btn-primary">
+                <i class="ri-rocket-line"></i>
+                เริ่มใช้ฟรีเลย
+            </a>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="#" class="nav-logo">
+                        <i class="ri-brain-line"></i>
+                        <span>Second Brain</span>
+                    </a>
+                    <p>ระบบจัดการชีวิตอัจฉริยะ ครบ 34+ ฟีเจอร์ในแอปเดียว ออกแบบมาเพื่อคนไทย</p>
+                    <div class="footer-social">
+                        <a href="#" aria-label="Facebook"><i class="ri-facebook-fill"></i></a>
+                        <a href="#" aria-label="Twitter"><i class="ri-twitter-x-fill"></i></a>
+                        <a href="#" aria-label="Instagram"><i class="ri-instagram-line"></i></a>
+                        <a href="#" aria-label="YouTube"><i class="ri-youtube-fill"></i></a>
+                        <a href="#" aria-label="GitHub"><i class="ri-github-fill"></i></a>
+                    </div>
+                </div>
+                <div class="footer-col">
+                    <h4>ผลิตภัณฑ์</h4>
+                    <ul>
+                        <li><a href="#features">ฟีเจอร์</a></li>
+                        <li><a href="#pricing">ราคา</a></li>
+                        <li><a href="#">อัปเดต</a></li>
+                        <li><a href="#">โรดแมป</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>บริษัท</h4>
+                    <ul>
+                        <li><a href="#">เกี่ยวกับเรา</a></li>
+                        <li><a href="#">บล็อก</a></li>
+                        <li><a href="#">ร่วมงานกับเรา</a></li>
+                        <li><a href="#">ติดต่อ</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>ช่วยเหลือ</h4>
+                    <ul>
+                        <li><a href="#faq">คำถามที่พบบ่อย</a></li>
+                        <li><a href="#">ศูนย์ช่วยเหลือ</a></li>
+                        <li><a href="#">นโยบายความเป็นส่วนตัว</a></li>
+                        <li><a href="#">ข้อกำหนดการใช้งาน</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 Second Brain. All rights reserved.</p>
+                <p>Made with <i class="ri-heart-fill" style="color: #ef4444;"></i> in Thailand</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Nav scroll effect
+        const navbar = document.getElementById('navbar');
+        window.addEventListener('scroll', () => {
+            navbar.classList.toggle('scrolled', window.scrollY > 50);
+        });
+
+        // Mobile nav toggle
+        const navToggle = document.getElementById('navToggle');
+        const navLinks = document.getElementById('navLinks');
+        navToggle.addEventListener('click', () => {
+            navLinks.classList.toggle('open');
+            const icon = navToggle.querySelector('i');
+            icon.className = navLinks.classList.contains('open') ? 'ri-close-line' : 'ri-menu-3-line';
+        });
+
+        // Close mobile nav on link click
+        navLinks.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                navLinks.classList.remove('open');
+                navToggle.querySelector('i').className = 'ri-menu-3-line';
+            });
+        });
+
+        // Intersection Observer for fade-in animations
+        const fadeElements = document.querySelectorAll('.fade-up');
+        const fadeObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    fadeObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -50px 0px'
+        });
+
+        fadeElements.forEach(el => fadeObserver.observe(el));
+
+        // FAQ accordion
+        document.querySelectorAll('.faq-question').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const item = btn.parentElement;
+                const wasActive = item.classList.contains('active');
+                // Close all
+                document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+                // Toggle current
+                if (!wasActive) item.classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>

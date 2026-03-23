@@ -1,7 +1,353 @@
 /* ============================================================
    SECOND BRAIN — app.js
-   34-Feature Full System
+   43+ Feature Full SaaS System
    ============================================================ */
+
+// ===== AUTH SYSTEM =====
+const AUTH_API = 'https://second-brain-sync.wrangsom.workers.dev';
+let authUser = JSON.parse(localStorage.getItem('sb_auth') || 'null');
+let authToken = localStorage.getItem('sb_auth_token') || '';
+
+function authShowLogin() {
+    document.getElementById('auth-login-form').style.display = 'block';
+    document.getElementById('auth-register-form').style.display = 'none';
+    document.getElementById('auth-login-error').textContent = '';
+}
+function authShowRegister() {
+    document.getElementById('auth-login-form').style.display = 'none';
+    document.getElementById('auth-register-form').style.display = 'block';
+    document.getElementById('auth-reg-error').textContent = '';
+}
+
+async function authLogin() {
+    const email = document.getElementById('auth-email').value.trim();
+    const password = document.getElementById('auth-password').value;
+    const errEl = document.getElementById('auth-login-error');
+    if (!email || !password) { errEl.textContent = 'กรุณากรอกอีเมลและรหัสผ่าน'; return; }
+
+    const btn = document.getElementById('auth-login-btn');
+    btn.classList.add('loading'); btn.innerHTML = '<i class="ri-loader-4-line" style="animation:spin 1s linear infinite"></i> กำลังเข้าสู่ระบบ...';
+
+    try {
+        const res = await fetch(AUTH_API + '/auth/login', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'เข้าสู่ระบบไม่สำเร็จ');
+
+        authUser = data.user;
+        authToken = data.token;
+        localStorage.setItem('sb_auth', JSON.stringify(authUser));
+        localStorage.setItem('sb_auth_token', authToken);
+
+        // Apply user's app name
+        if (authUser.appName) applyAppName(authUser.appName);
+
+        authCompleteLogin();
+
+        // Try loading cloud data
+        try { await authLoadData(); } catch(e) {}
+
+    } catch(e) {
+        errEl.textContent = e.message;
+        btn.classList.remove('loading');
+        btn.innerHTML = '<i class="ri-login-box-line"></i> เข้าสู่ระบบ';
+    }
+}
+
+async function authRegister() {
+    const name = document.getElementById('auth-reg-name').value.trim();
+    const email = document.getElementById('auth-reg-email').value.trim();
+    const password = document.getElementById('auth-reg-password').value;
+    const password2 = document.getElementById('auth-reg-password2').value;
+    const appName = document.getElementById('auth-reg-appname').value.trim() || 'Second Brain';
+    const errEl = document.getElementById('auth-reg-error');
+
+    if (!email || !password) { errEl.textContent = 'กรุณากรอกข้อมูลให้ครบ'; return; }
+    if (password.length < 6) { errEl.textContent = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'; return; }
+    if (password !== password2) { errEl.textContent = 'รหัสผ่านไม่ตรงกัน'; return; }
+
+    try {
+        const res = await fetch(AUTH_API + '/auth/signup', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, displayName: name, appName })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'สมัครไม่สำเร็จ');
+
+        authUser = data.user;
+        authToken = data.token;
+        localStorage.setItem('sb_auth', JSON.stringify(authUser));
+        localStorage.setItem('sb_auth_token', authToken);
+
+        if (appName) applyAppName(appName);
+        authCompleteLogin();
+
+        // Show onboarding for new users
+        setTimeout(() => startOnboarding(), 500);
+
+    } catch(e) {
+        errEl.textContent = e.message;
+    }
+}
+
+function authSkipLogin() {
+    authCompleteLogin();
+    // Show onboarding if first time
+    if (!localStorage.getItem('sb_onboarded')) {
+        setTimeout(() => startOnboarding(), 500);
+    }
+}
+
+function authCompleteLogin() {
+    document.getElementById('auth-screen').classList.add('hidden');
+    updateUserUI();
+    initApp();
+}
+
+async function authLogout() {
+    if (!confirm('ออกจากระบบ?')) return;
+    // Save data to cloud before logout
+    if (authToken) {
+        try { await authSaveData(); } catch(e) {}
+        try {
+            await fetch(AUTH_API + '/auth/logout', {
+                method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }
+            });
+        } catch(e) {}
+    }
+    authUser = null; authToken = '';
+    localStorage.removeItem('sb_auth');
+    localStorage.removeItem('sb_auth_token');
+    location.reload();
+}
+
+async function authSaveData() {
+    if (!authToken) return;
+    await fetch(AUTH_API + '/data/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+        body: JSON.stringify({ data: D })
+    });
+}
+
+async function authLoadData() {
+    if (!authToken) return;
+    const res = await fetch(AUTH_API + '/data/load', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+        body: JSON.stringify({})
+    });
+    const result = await res.json();
+    if (result.data) {
+        Object.assign(D, result.data);
+        save(); renderAll();
+    }
+}
+
+function updateUserUI() {
+    const userSection = document.getElementById('sidebar-user');
+    if (authUser && authToken) {
+        userSection.style.display = 'flex';
+        document.getElementById('sidebar-user-name').textContent = authUser.displayName || 'User';
+        document.getElementById('sidebar-user-email').textContent = authUser.email;
+        document.getElementById('sidebar-user-avatar').textContent = (authUser.displayName || authUser.email || 'U')[0].toUpperCase();
+    } else {
+        userSection.style.display = 'none';
+    }
+}
+
+function toggleUserMenu() {
+    const menu = document.getElementById('sidebar-user-menu');
+    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+}
+
+// ===== CUSTOMIZABLE APP NAME =====
+function applyAppName(name) {
+    const appName = name || 'Second Brain';
+    document.title = appName + ' - ระบบสมองที่สอง';
+    const sidebarName = document.getElementById('sidebar-app-name');
+    if (sidebarName) sidebarName.textContent = appName;
+    const pinName = document.getElementById('pin-app-name');
+    if (pinName) pinName.textContent = appName;
+    const authName = document.getElementById('auth-app-name');
+    if (authName) authName.textContent = appName;
+}
+
+function openAppNameSettings() {
+    const current = document.getElementById('sidebar-app-name').textContent;
+    const newName = prompt('ตั้งชื่อแอปใหม่:', current);
+    if (newName && newName.trim()) {
+        applyAppName(newName.trim());
+        if (authToken) {
+            fetch(AUTH_API + '/auth/profile', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+                body: JSON.stringify({ appName: newName.trim() })
+            }).catch(()=>{});
+        }
+        syncToast('เปลี่ยนชื่อแอปเป็น "' + newName.trim() + '" แล้ว!');
+    }
+    document.getElementById('sidebar-user-menu').style.display = 'none';
+}
+
+function openProfileSettings() {
+    document.getElementById('sidebar-user-menu').style.display = 'none';
+    // Open a simple profile modal
+    const name = prompt('ชื่อที่แสดง:', authUser?.displayName || '');
+    if (name !== null && authToken) {
+        authUser.displayName = name;
+        localStorage.setItem('sb_auth', JSON.stringify(authUser));
+        updateUserUI();
+        fetch(AUTH_API + '/auth/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+            body: JSON.stringify({ displayName: name })
+        }).catch(()=>{});
+        syncToast('อัปเดตโปรไฟล์แล้ว!');
+    }
+}
+
+// ===== ONBOARDING GUIDE =====
+const ONBOARDING_STEPS = [
+    {
+        icon: '🧠',
+        title: 'ยินดีต้อนรับสู่ Second Brain!',
+        desc: 'ระบบจัดการชีวิตและงานอัจฉริยะ ที่จะทำให้คุณไม่ลืมอะไรอีกต่อไป',
+        features: []
+    },
+    {
+        icon: '📥',
+        title: 'จับทุกอย่างใน Inbox',
+        desc: 'ไอเดียผุดขึ้นมาเมื่อไหร่ กด <strong>Ctrl+N</strong> หรือปุ่ม Quick Capture จดทันที ไม่ต้องคิดว่าจะจัดไว้ที่ไหน — จัดระเบียบทีหลัง',
+        features: [
+            {icon:'ri-flashlight-line', text:'Quick Capture'},
+            {icon:'ri-inbox-2-line', text:'Inbox รวมศูนย์'},
+        ]
+    },
+    {
+        icon: '📋',
+        title: 'จัดการงานรายวัน',
+        desc: 'ไปที่ <strong>"วันนี้"</strong> เพิ่มงาน 3-5 ข้อที่ต้องทำ ลากวางได้ใน Kanban Board หรือจัดลำดับใน Eisenhower Matrix',
+        features: [
+            {icon:'ri-sun-line', text:'แผนวันนี้'},
+            {icon:'ri-layout-column-line', text:'Kanban Board'},
+            {icon:'ri-grid-line', text:'Eisenhower Matrix'},
+            {icon:'ri-focus-3-line', text:'Focus Mode + Pomodoro'},
+        ]
+    },
+    {
+        icon: '🚀',
+        title: 'จัดระเบียบด้วย PARA',
+        desc: 'แบ่งทุกอย่างเป็น 4 หมวด: <strong>Projects</strong> (งานมีเดดไลน์), <strong>Areas</strong> (ความรับผิดชอบ), <strong>Resources</strong> (อ้างอิง), <strong>Archive</strong> (เสร็จแล้ว)',
+        features: [
+            {icon:'ri-rocket-2-line', text:'Projects'},
+            {icon:'ri-compass-3-line', text:'Areas'},
+            {icon:'ri-book-2-line', text:'Resources'},
+            {icon:'ri-archive-2-line', text:'Archive'},
+        ]
+    },
+    {
+        icon: '💡',
+        title: 'สร้างฐานความรู้',
+        desc: 'เขียนโน้ตด้วย Markdown เชื่อมโยงกันเป็น Knowledge Graph ทบทวนด้วย Spaced Repetition จำได้ถาวร',
+        features: [
+            {icon:'ri-sticky-note-2-line', text:'Knowledge Base'},
+            {icon:'ri-mind-map', text:'Knowledge Graph'},
+            {icon:'ri-repeat-2-line', text:'Spaced Repetition'},
+        ]
+    },
+    {
+        icon: '❤️',
+        title: 'ดูแลชีวิตรอบด้าน',
+        desc: 'บันทึก Journal + Mood, ติดตามนิสัย, จัดการเงิน, ดูแลสุขภาพ — ทุกอย่างในที่เดียว',
+        features: [
+            {icon:'ri-quill-pen-line', text:'Journal + Mood'},
+            {icon:'ri-heart-pulse-line', text:'Habit Tracker'},
+            {icon:'ri-money-dollar-circle-line', text:'Finance Tracker'},
+            {icon:'ri-stethoscope-line', text:'Health Dashboard'},
+        ]
+    },
+    {
+        icon: '☁️',
+        title: 'Sync ข้ามอุปกรณ์',
+        desc: 'ไปที่ <strong>Cloud Sync</strong> สร้าง Sync Code แล้ว Push/Pull ข้อมูล หรือล็อกอินเพื่อ sync อัตโนมัติ ใช้ได้ทุกอุปกรณ์!',
+        features: [
+            {icon:'ri-cloud-line', text:'Cloud Sync'},
+            {icon:'ri-smartphone-line', text:'ทุกอุปกรณ์'},
+            {icon:'ri-shield-check-line', text:'เข้ารหัสปลอดภัย'},
+        ]
+    },
+    {
+        icon: '🎮',
+        title: 'พร้อมเริ่มแล้ว!',
+        desc: 'ทำงานเสร็จ = ได้ XP, Level Up, ปลดล็อค Achievements! กด <strong>Ctrl+K</strong> เพื่อเปิด Command Palette สั่งทุกอย่างได้เลย',
+        features: []
+    }
+];
+
+let onboardingStep = 0;
+
+function startOnboarding() {
+    onboardingStep = 0;
+    renderOnboardingStep();
+    document.getElementById('onboarding-overlay').classList.add('show');
+}
+
+function renderOnboardingStep() {
+    const step = ONBOARDING_STEPS[onboardingStep];
+    const total = ONBOARDING_STEPS.length;
+
+    // Dots
+    document.getElementById('onboarding-dots').innerHTML = Array.from({length:total}, (_,i) =>
+        `<div class="onboarding-dot ${i === onboardingStep ? 'active' : i < onboardingStep ? 'done' : ''}"></div>`
+    ).join('');
+
+    // Content
+    let featuresHTML = '';
+    if (step.features.length > 0) {
+        featuresHTML = '<div class="onboarding-features">' + step.features.map(f =>
+            `<div class="onboarding-feature"><i class="${f.icon}"></i> ${f.text}</div>`
+        ).join('') + '</div>';
+    }
+
+    document.getElementById('onboarding-content').innerHTML = `
+        <div class="onboarding-icon">${step.icon}</div>
+        <div class="onboarding-title">${step.title}</div>
+        <div class="onboarding-desc">${step.desc}</div>
+        ${featuresHTML}
+    `;
+
+    // Nav buttons
+    document.getElementById('onboarding-prev').style.display = onboardingStep > 0 ? 'inline-flex' : 'none';
+    const nextBtn = document.getElementById('onboarding-next');
+    if (onboardingStep === total - 1) {
+        nextBtn.innerHTML = '<i class="ri-check-line"></i> เริ่มใช้งาน!';
+        nextBtn.className = 'btn btn-success';
+    } else {
+        nextBtn.innerHTML = 'ถัดไป <i class="ri-arrow-right-line"></i>';
+        nextBtn.className = 'btn btn-primary';
+    }
+}
+
+function onboardingNext() {
+    if (onboardingStep < ONBOARDING_STEPS.length - 1) {
+        onboardingStep++;
+        renderOnboardingStep();
+    } else {
+        onboardingSkip();
+    }
+}
+
+function onboardingPrev() {
+    if (onboardingStep > 0) { onboardingStep--; renderOnboardingStep(); }
+}
+
+function onboardingSkip() {
+    document.getElementById('onboarding-overlay').classList.remove('show');
+    localStorage.setItem('sb_onboarded', '1');
+}
 
 // ===== DATA STORE =====
 const DB_KEY = 'secondbrain_v2';
@@ -91,6 +437,10 @@ function initApp(){
     else { unlockApp(); }
     // Theme
     document.documentElement.setAttribute('data-theme', D.theme || 'midnight');
+    // Apply custom app name
+    if (authUser && authUser.appName) applyAppName(authUser.appName);
+    // Update user UI
+    updateUserUI();
     // Greeting
     updateGreeting();
     // Streak
@@ -101,7 +451,36 @@ function initApp(){
     renderRituals();
     // Life wheel inputs
     renderLifeWheelInputs();
+    // Auto-save to cloud every 5 min if logged in
+    if (authToken) {
+        setInterval(() => { authSaveData().catch(()=>{}); }, 5 * 60 * 1000);
+    }
 }
+
+// Check auth on page load
+document.addEventListener('DOMContentLoaded', () => {
+    if (authUser && authToken) {
+        // Already logged in - verify session
+        fetch(AUTH_API + '/auth/me', {
+            headers: { 'Authorization': 'Bearer ' + authToken }
+        }).then(r => r.json()).then(data => {
+            if (data.success) {
+                authUser = data.user;
+                localStorage.setItem('sb_auth', JSON.stringify(authUser));
+                authCompleteLogin();
+            } else {
+                // Token expired
+                document.getElementById('auth-screen').classList.remove('hidden');
+            }
+        }).catch(() => {
+            // Offline — skip auth, use local data
+            authCompleteLogin();
+        });
+    } else {
+        // Show auth screen
+        document.getElementById('auth-screen').classList.remove('hidden');
+    }
+});
 
 function updateGreeting(){
     const h = new Date().getHours();
